@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.enums import UserRole
+from app.core.redis import get_redis_pool
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -27,13 +28,10 @@ settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-async def get_redis():
-    """Yield a Redis connection for dependency injection."""
-    redis = Redis.from_url(settings.REDIS_URL)
-    try:
-        yield redis
-    finally:
-        await redis.aclose()
+async def get_redis() -> Redis:
+    """Yield the singleton Redis connection."""
+    redis = await get_redis_pool()
+    yield redis
 
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> User | None:
