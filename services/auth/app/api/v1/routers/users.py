@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.routers.auth import get_current_user
+from app.core.enums import UserRole
 from app.core.permissions import can_manage_user, can_transfer_user
 from app.db.models import User
 from app.db.session import get_db
@@ -26,9 +27,9 @@ async def list_users(
     """
     current_role = current_user.roles[0].name if current_user.roles else ""
 
-    if current_role == "admin":
+    if current_role == UserRole.ADMIN:
         result = await db.execute(select(User).options(selectinload(User.roles)))
-    elif current_role == "methodist":
+    elif current_role == UserRole.METHODIST:
         result = await db.execute(
             select(User).where(User.manager_id == current_user.id).options(selectinload(User.roles))
         )
@@ -133,7 +134,7 @@ async def delete_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     current_role = current_user.roles[0].name if current_user.roles else ""
-    if current_role != "admin":
+    if current_role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin can delete users",

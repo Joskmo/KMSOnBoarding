@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import UserRole
 from app.core.permissions import can_create_invitation, require_manager_or_admin
 from app.db.models import Invitation, Role, User
 from app.db.session import get_db
@@ -70,7 +71,7 @@ async def list_invitations(
     """List invitations created by the current user (or all for admin)."""
     creator_role = current_user.roles[0].name if current_user.roles else ""
 
-    if creator_role == "admin":
+    if creator_role == UserRole.ADMIN:
         result = await db.execute(select(Invitation))
     else:
         result = await db.execute(
@@ -96,7 +97,7 @@ async def delete_invitation(
         )
 
     creator_role = current_user.roles[0].name if current_user.roles else ""
-    if creator_role != "admin" and invitation.created_by != current_user.id:
+    if creator_role != UserRole.ADMIN and invitation.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete this invitation",

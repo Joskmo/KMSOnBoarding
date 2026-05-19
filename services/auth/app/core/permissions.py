@@ -12,13 +12,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.routers.auth import get_current_user
+from app.core.enums import UserRole
 from app.db.models import User
 
 ROLE_HIERARCHY = {
-    "admin": 3,
-    "methodist": 2,
-    "seminarist": 1,
-    "candidate": 0,
+    UserRole.ADMIN: 3,
+    UserRole.METHODIST: 2,
+    UserRole.SEMINARIST: 1,
+    UserRole.CANDIDATE: 0,
 }
 
 
@@ -51,7 +52,7 @@ async def require_admin(
 ) -> User:
     """Require admin role."""
     primary = _get_primary_role(current_user)
-    if primary != "admin":
+    if primary != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
@@ -64,7 +65,7 @@ async def require_manager_or_admin(
 ) -> User:
     """Require methodist or admin role."""
     primary = _get_primary_role(current_user)
-    if primary not in ("admin", "methodist"):
+    if primary not in (UserRole.ADMIN, UserRole.METHODIST):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager or admin access required",
@@ -74,10 +75,14 @@ async def require_manager_or_admin(
 
 def can_create_invitation(creator_role: str, target_role: str) -> bool:
     """Check if a creator can invite someone with target_role."""
-    if creator_role == "admin":
+    if creator_role == UserRole.ADMIN:
         return True
-    if creator_role == "methodist":
-        return target_role in ("methodist", "seminarist", "candidate")
+    if creator_role == UserRole.METHODIST:
+        return target_role in (
+            UserRole.METHODIST,
+            UserRole.SEMINARIST,
+            UserRole.CANDIDATE,
+        )
     return False
 
 
@@ -89,9 +94,9 @@ async def can_transfer_user(
 ) -> bool:
     """Check if current_user can transfer target_user to new_manager_id."""
     current_role = _get_primary_role(current_user)
-    if current_role == "admin":
+    if current_role == UserRole.ADMIN:
         return True
-    if current_role == "methodist":
+    if current_role == UserRole.METHODIST:
         # Can only transfer own subordinates
         if target_user.manager_id != current_user.id:
             return False
@@ -101,7 +106,7 @@ async def can_transfer_user(
         if not new_manager:
             return False
         manager_role = _get_primary_role(new_manager)
-        return manager_role == "methodist"
+        return manager_role == UserRole.METHODIST
     return False
 
 
@@ -111,8 +116,8 @@ async def can_manage_user(
 ) -> bool:
     """Check if current_user can view/manage target_user."""
     current_role = _get_primary_role(current_user)
-    if current_role == "admin":
+    if current_role == UserRole.ADMIN:
         return True
-    if current_role == "methodist":
+    if current_role == UserRole.METHODIST:
         return target_user.manager_id == current_user.id
     return current_user.id == target_user.id

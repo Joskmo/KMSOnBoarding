@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.core.enums import UserRole
 from app.db.models import Invitation, Role
 
 
@@ -35,7 +36,7 @@ async def test_admin_can_create_invitation_for_any_role(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "methodist"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.METHODIST))
     methodist_role = role_result.fetchone()
     role_id = str(methodist_role.id)
 
@@ -62,7 +63,7 @@ async def test_methodist_can_create_invitation_for_candidate(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     admin_token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "methodist"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.METHODIST))
     methodist_role = role_result.fetchone()
 
     # Admin invites methodist
@@ -83,7 +84,7 @@ async def test_methodist_can_create_invitation_for_candidate(client, db):
     methodist_token = await login_user(client, "methodist@example.com", "password123")
 
     # Methodist invites candidate
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "candidate"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
     candidate_role = role_result.fetchone()
 
     response = await client.post(
@@ -104,7 +105,7 @@ async def test_methodist_cannot_create_invitation_for_admin(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     admin_token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "methodist"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.METHODIST))
     methodist_role = role_result.fetchone()
 
     response = await client.post(
@@ -122,7 +123,7 @@ async def test_methodist_cannot_create_invitation_for_admin(client, db):
     )
     methodist_token = await login_user(client, "methodist@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "admin"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.ADMIN))
     admin_role = role_result.fetchone()
 
     response = await client.post(
@@ -143,7 +144,7 @@ async def test_register_with_valid_invitation(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "candidate"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
     candidate_role = role_result.fetchone()
 
     response = await client.post(
@@ -169,7 +170,7 @@ async def test_register_with_valid_invitation(client, db):
     data = response.json()
     assert data["email"] == "candidate@example.com"
     assert len(data["roles"]) == 1
-    assert data["roles"][0]["name"] == "candidate"
+    assert data["roles"][0]["name"] == UserRole.CANDIDATE
 
 
 @pytest.mark.asyncio
@@ -178,7 +179,7 @@ async def test_register_with_used_invitation(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "candidate"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
     candidate_role = role_result.fetchone()
 
     response = await client.post(
@@ -221,7 +222,7 @@ async def test_register_with_expired_invitation(client, db):
     """Registration with expired invitation token fails."""
     admin = await create_user(client, "admin@example.com", "password123", "Admin")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "candidate"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
     candidate_role = role_result.fetchone()
 
     # Manually create expired invitation
@@ -255,7 +256,7 @@ async def test_list_invitations_admin_sees_all(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     admin_token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "candidate"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
     candidate_role = role_result.fetchone()
 
     # Admin creates invitation
@@ -282,7 +283,7 @@ async def test_delete_invitation(client, db):
     _ = await create_user(client, "admin@example.com", "password123", "Admin")
     admin_token = await login_user(client, "admin@example.com", "password123")
 
-    role_result = await db.execute(Role.__table__.select().where(Role.name == "candidate"))
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
     candidate_role = role_result.fetchone()
 
     response = await client.post(

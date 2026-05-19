@@ -1,5 +1,7 @@
 import pytest
 
+from app.core.enums import UserRole
+
 
 @pytest.mark.asyncio
 async def test_register_first_user_becomes_admin(client):
@@ -15,7 +17,7 @@ async def test_register_first_user_becomes_admin(client):
     assert "id" in data
     # Check role
     assert len(data["roles"]) == 1
-    assert data["roles"][0]["name"] == "admin"
+    assert data["roles"][0]["name"] == UserRole.ADMIN
 
 
 @pytest.mark.asyncio

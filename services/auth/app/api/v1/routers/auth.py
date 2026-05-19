@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
+from app.core.enums import UserRole
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -141,7 +142,7 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
 
     if is_first_user:
         # First user gets admin role
-        role_result = await db.execute(select(Role).where(Role.name == "admin"))
+        role_result = await db.execute(select(Role).where(Role.name == UserRole.ADMIN))
         admin_role = role_result.scalar_one()
         new_user.roles.append(admin_role)
     else:

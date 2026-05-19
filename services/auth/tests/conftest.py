@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
+from app.core.enums import UserRole
 from app.db.models import Base, Role
 from app.db.session import get_db
 from app.main import app
@@ -32,10 +33,10 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 ROLES = [
-    {"name": "admin", "description": "Administrator with full access"},
-    {"name": "methodist", "description": "Content creator and manager"},
-    {"name": "seminarist", "description": "Seminar conductor"},
-    {"name": "candidate", "description": "Learner and test taker"},
+    {"name": UserRole.ADMIN, "description": "Administrator with full access"},
+    {"name": UserRole.METHODIST, "description": "Content creator and manager"},
+    {"name": UserRole.SEMINARIST, "description": "Seminar conductor"},
+    {"name": UserRole.CANDIDATE, "description": "Learner and test taker"},
 ]
 
 
