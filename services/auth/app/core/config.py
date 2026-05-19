@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    DATABASE_URL: str = "postgresql+asyncpg://kms:kms@localhost:5432/kms_auth"
+    DATABASE_URL: str = "postgresql+asyncpg://kms:kms@localhost:5433/kms_auth"
     REDIS_URL: str = "redis://localhost:6379/0"
     SECRET_KEY: str = "super-secret-key-change-in-prod"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
