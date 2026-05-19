@@ -98,16 +98,30 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis)
 ):
+    # Rate limiting: 5 attempts per minute per IP
+    client_ip = "127.0.0.1"  # In production, get from request headers
+    rate_key = f"rate_limit:login:{client_ip}"
+    attempts = await redis.get(rate_key)
+    if attempts and int(attempts) >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again later."
+        )
+    
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        await redis.incr(rate_key)
+        await redis.expire(rate_key, 60)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    await redis.delete(rate_key)
     access_token = create_access_token(data={"sub": str(user.id), "jti": str(uuid4())})
     refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
     
