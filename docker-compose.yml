@@ -19,7 +19,7 @@ services:
       context: ./services/auth
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_auth:5432/kms_auth
+      - DATABASE_URL=${AUTH_DATABASE_URL}
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
@@ -35,7 +35,7 @@ services:
       context: ./services/content
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_content:5432/kms_content
+      - DATABASE_URL=${CONTENT_DATABASE_URL}
     depends_on:
       - db_content
     networks:
@@ -46,7 +46,7 @@ services:
       context: ./services/assessment
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_assessment:5432/kms_assessment
+      - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
     depends_on:
       - db_assessment
     networks:
