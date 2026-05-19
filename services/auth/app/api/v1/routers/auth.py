@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -106,8 +106,8 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
         )
 
     # Check if this is the first user
-    result = await db.execute(select(User))
-    user_count = len(result.scalars().all())
+    result = await db.execute(select(func.count(User.id)))
+    user_count = result.scalar()
     is_first_user = user_count == 0
 
     invitation: Invitation | None = None
