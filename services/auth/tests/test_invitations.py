@@ -813,3 +813,19 @@ async def test_methodist_invitation_for_methodist_no_manager(client):
     )
     assert response.status_code == 201
     assert response.json()["manager_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_admin_auto_assigns_self_as_manager(client):
+    """Admin creating candidate invitation without manager_id auto-assigns self."""
+    admin = await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # Admin creates candidate invitation without specifying manager_id
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "candidate@example.com", "role_name": UserRole.CANDIDATE},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 201
+    assert response.json()["manager_id"] == admin["id"]

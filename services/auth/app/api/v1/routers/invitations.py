@@ -75,20 +75,24 @@ async def create_invitation(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Methodist can only assign subordinates to themselves",
             )
-    elif creator_role == UserRole.ADMIN and manager_id is not None:
-        # Admin can assign to any admin or methodist
-        result = await db.execute(select(User).where(User.id == manager_id))
-        manager = result.scalar_one_or_none()
-        if not manager:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Manager not found",
-            )
-        if manager.role not in (UserRole.ADMIN, UserRole.METHODIST):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Manager must be an admin or methodist",
-            )
+    elif creator_role == UserRole.ADMIN:
+        if manager_id is None:
+            # Admin inviting candidate/seminarist: auto-assign to self
+            manager_id = current_user.id
+        else:
+            # Admin can assign to any admin or methodist
+            result = await db.execute(select(User).where(User.id == manager_id))
+            manager = result.scalar_one_or_none()
+            if not manager:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Manager not found",
+                )
+            if manager.role not in (UserRole.ADMIN, UserRole.METHODIST):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Manager must be an admin or methodist",
+                )
 
     # Generate unique token
     token = str(uuid4())
