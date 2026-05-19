@@ -11,5 +11,5 @@ docs
 notes
 .playwright/
 .playwright-mcp/
-.opencode
+.opencode/
 AGENTS.md
