@@ -336,3 +336,256 @@ async def test_list_invitations_with_null_created_by(client, db):
     data = response.json()
     assert len(data) == 1
     assert data[0]["created_by"] is None
+
+
+@pytest.mark.asyncio
+async def test_candidate_cannot_create_invitation(client, db):
+    """Candidate gets 403 when trying to create an invitation."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
+    candidate_role = role_result.fetchone()
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "candidate@example.com", "role_id": str(candidate_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    await create_user(
+        client, "candidate@example.com", "password123", "Candidate", invitation_token=invite_token
+    )
+    candidate_token = await login_user(client, "candidate@example.com", "password123")
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "new@example.com", "role_id": str(candidate_role.id)},
+        headers={"Authorization": f"Bearer {candidate_token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_seminarist_cannot_list_invitations(client, db):
+    """Seminarist gets 403 when trying to list invitations."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.SEMINARIST))
+    seminarist_role = role_result.fetchone()
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "seminarist@example.com", "role_id": str(seminarist_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    await create_user(
+        client,
+        "seminarist@example.com",
+        "password123",
+        "Seminarist",
+        invitation_token=invite_token,
+    )
+    seminarist_token = await login_user(client, "seminarist@example.com", "password123")
+
+    response = await client.get(
+        "/api/v1/invitations/", headers={"Authorization": f"Bearer {seminarist_token}"}
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_methodist_sees_only_own_invitations(client, db):
+    """Methodist should see only invitations they created."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.METHODIST))
+    methodist_role = role_result.fetchone()
+
+    # Invite methodist1
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "m1@example.com", "role_id": str(methodist_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    token1 = response.json()["token"]
+
+    # Invite methodist2
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "m2@example.com", "role_id": str(methodist_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    token2 = response.json()["token"]
+
+    await create_user(client, "m1@example.com", "password123", "M1", invitation_token=token1)
+    m1_token = await login_user(client, "m1@example.com", "password123")
+
+    await create_user(client, "m2@example.com", "password123", "M2", invitation_token=token2)
+    m2_token = await login_user(client, "m2@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
+    candidate_role = role_result.fetchone()
+
+    # M1 creates invitation
+    await client.post(
+        "/api/v1/invitations/",
+        json={"email": "c1@example.com", "role_id": str(candidate_role.id)},
+        headers={"Authorization": f"Bearer {m1_token}"},
+    )
+
+    # M2 creates invitation
+    await client.post(
+        "/api/v1/invitations/",
+        json={"email": "c2@example.com", "role_id": str(candidate_role.id)},
+        headers={"Authorization": f"Bearer {m2_token}"},
+    )
+
+    # M1 should see only 1
+    response = await client.get(
+        "/api/v1/invitations/", headers={"Authorization": f"Bearer {m1_token}"}
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["email"] == "c1@example.com"
+
+
+@pytest.mark.asyncio
+async def test_methodist_can_delete_own_invitation(client, db):
+    """Methodist can delete their own invitation."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.METHODIST))
+    methodist_role = role_result.fetchone()
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_id": str(methodist_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    await create_user(
+        client, "methodist@example.com", "password123", "Methodist", invitation_token=invite_token
+    )
+    methodist_token = await login_user(client, "methodist@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
+    candidate_role = role_result.fetchone()
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "c1@example.com", "role_id": str(candidate_role.id)},
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    invite_id = response.json()["id"]
+
+    response = await client.delete(
+        f"/api/v1/invitations/{invite_id}",
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_methodist_cannot_delete_others_invitation(client, db):
+    """Methodist cannot delete an invitation created by another user."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.METHODIST))
+    methodist_role = role_result.fetchone()
+
+    # Invite m1
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "m1@example.com", "role_id": str(methodist_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    token1 = response.json()["token"]
+
+    # Invite m2
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "m2@example.com", "role_id": str(methodist_role.id)},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    token2 = response.json()["token"]
+
+    await create_user(client, "m1@example.com", "password123", "M1", invitation_token=token1)
+    m1_token = await login_user(client, "m1@example.com", "password123")
+
+    await create_user(client, "m2@example.com", "password123", "M2", invitation_token=token2)
+    m2_token = await login_user(client, "m2@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
+    candidate_role = role_result.fetchone()
+
+    # M1 creates invitation
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "c1@example.com", "role_id": str(candidate_role.id)},
+        headers={"Authorization": f"Bearer {m1_token}"},
+    )
+    invite_id = response.json()["id"]
+
+    # M2 tries to delete M1's invitation
+    response = await client.delete(
+        f"/api/v1/invitations/{invite_id}",
+        headers={"Authorization": f"Bearer {m2_token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_invitation(client):
+    """Deleting a nonexistent invitation returns 404."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    fake_id = str(uuid4())
+    response = await client.delete(
+        f"/api/v1/invitations/{fake_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_invitation_with_invalid_role_id(client):
+    """Creating invitation with nonexistent role_id returns 404."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    fake_role_id = str(uuid4())
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "new@example.com", "role_id": fake_role_id},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_register_with_invalid_invitation_token(client):
+    """Registration with a random invalid token returns 400."""
+    # Ensure at least one user exists so this is not treated as first-user registration
+    await create_user(client, "admin@example.com", "password123", "Admin")
+
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "user@example.com",
+            "password": "password123",
+            "full_name": "User",
+            "invitation_token": str(uuid4()),
+        },
+    )
+    assert response.status_code == 400
+    assert "Invalid invitation token" in response.json()["detail"]
