@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db_auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kms_auth
+      POSTGRES_USER: kms
+      POSTGRES_PASSWORD: kms
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_auth_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pg_auth_data:
