@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 
 
 class RoleBase(BaseModel):
@@ -51,9 +51,15 @@ class UserResponse(UserBase):
     updated_at: datetime
     manager_id: UUID | None = None
     invited_by: UUID | None = None
-    roles: list[RoleResponse] = []
+    roles: list[RoleResponse] = Field(default=[], exclude=True)
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def role(self) -> RoleResponse | None:
+        """Return the user's primary (and only) role."""
+        return self.roles[0] if self.roles else None
 
 
 class Token(BaseModel):

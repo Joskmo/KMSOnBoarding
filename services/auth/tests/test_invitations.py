@@ -169,8 +169,8 @@ async def test_register_with_valid_invitation(client, db):
     assert response.status_code == 201
     data = response.json()
     assert data["email"] == "candidate@example.com"
-    assert len(data["roles"]) == 1
-    assert data["roles"][0]["name"] == UserRole.CANDIDATE
+    assert data["role"] is not None
+    assert data["role"]["name"] == UserRole.CANDIDATE
 
 
 @pytest.mark.asyncio
