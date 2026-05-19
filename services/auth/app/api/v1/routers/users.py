@@ -20,7 +20,7 @@ async def list_users(
 ) -> list[User]:
     """List all users."""
     result = await db.execute(select(User).options(selectinload(User.roles)))
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 @router.get("/me", response_model=UserResponse)

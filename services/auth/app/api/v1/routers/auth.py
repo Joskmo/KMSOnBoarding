@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -160,7 +160,7 @@ async def logout(
         jti = payload["jti"]
         exp = payload.get("exp")
         if exp:
-            ttl = int(exp) - int(datetime.utcnow().timestamp())
+            ttl = int(exp) - int(datetime.now(UTC).timestamp())
             if ttl > 0:
                 await redis.setex(f"blacklist:{jti}", ttl, "true")
 
