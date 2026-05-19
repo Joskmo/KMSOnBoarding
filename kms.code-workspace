@@ -36,7 +36,6 @@
         "python.linting.enabled": false,
         "ruff.nativeServer": "on",
         "ruff.configuration": "${workspaceFolder:KMS Root}/ruff.toml",
-        "ruff.lint.run": "onSave",
         "python.analysis.typeCheckingMode": "basic",
         "python.analysis.autoImportCompletions": true,
         "python.analysis.diagnosticSeverityOverrides": {
