@@ -669,3 +669,147 @@ async def test_register_with_invalid_invitation_token(client):
     )
     assert response.status_code == 400
     assert "Invalid invitation token" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_methodist_auto_assigns_manager_id(client):
+    """Methodist creating candidate invitation without manager_id auto-assigns self."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # Admin invites methodist
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_name": UserRole.METHODIST},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    methodist = await create_user(
+        client,
+        "methodist@example.com",
+        "password123",
+        "Methodist",
+        invitation_token=invite_token,
+    )
+    methodist_token = await login_user(client, "methodist@example.com", "password123")
+
+    # Methodist invites candidate without specifying manager_id
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "candidate@example.com", "role_name": UserRole.CANDIDATE},
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["manager_id"] == methodist["id"]
+
+
+@pytest.mark.asyncio
+async def test_methodist_cannot_assign_other_manager(client):
+    """Methodist cannot assign another user as manager for subordinate."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # Invite methodist1
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "m1@example.com", "role_name": UserRole.METHODIST},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    token1 = response.json()["token"]
+
+    # Invite methodist2
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "m2@example.com", "role_name": UserRole.METHODIST},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    m2 = await create_user(
+        client, "m2@example.com", "password123", "M2", invitation_token=response.json()["token"]
+    )
+
+    await create_user(client, "m1@example.com", "password123", "M1", invitation_token=token1)
+    m1_token = await login_user(client, "m1@example.com", "password123")
+
+    # M1 tries to assign M2 as manager
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "candidate@example.com",
+            "role_name": UserRole.CANDIDATE,
+            "manager_id": str(m2["id"]),
+        },
+        headers={"Authorization": f"Bearer {m1_token}"},
+    )
+    assert response.status_code == 422
+    assert "Methodist can only assign subordinates to themselves" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_assign_methodist_as_manager(client):
+    """Admin can assign a methodist as manager when creating invitation."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # Invite methodist
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_name": UserRole.METHODIST},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    methodist = await create_user(
+        client,
+        "methodist@example.com",
+        "password123",
+        "Methodist",
+        invitation_token=response.json()["token"],
+    )
+
+    # Admin creates candidate invitation with methodist as manager
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "candidate@example.com",
+            "role_name": UserRole.CANDIDATE,
+            "manager_id": str(methodist["id"]),
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 201
+    assert response.json()["manager_id"] == methodist["id"]
+
+
+@pytest.mark.asyncio
+async def test_methodist_invitation_for_methodist_no_manager(client):
+    """Methodist invitation always has null manager_id even if specified."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # Admin invites a methodist
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_name": UserRole.METHODIST},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    methodist = await create_user(
+        client,
+        "methodist@example.com",
+        "password123",
+        "Methodist",
+        invitation_token=response.json()["token"],
+    )
+    methodist_token = await login_user(client, "methodist@example.com", "password123")
+
+    # Methodist invites another methodist with manager_id — should be ignored
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "m2@example.com",
+            "role_name": UserRole.METHODIST,
+            "manager_id": str(methodist["id"]),
+        },
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    assert response.status_code == 201
+    assert response.json()["manager_id"] is None

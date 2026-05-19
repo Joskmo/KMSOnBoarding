@@ -58,9 +58,25 @@ async def create_invitation(
         if existing:
             return existing
 
-    # Validate manager_id if provided
+    # Determine manager_id based on creator role and target role
+    target_role = invitation_data.role_name
     manager_id = invitation_data.manager_id
-    if manager_id is not None:
+
+    if target_role == UserRole.METHODIST:
+        # Methodist is independent — no manager
+        manager_id = None
+    elif creator_role == UserRole.METHODIST:
+        # Methodist inviting candidate/seminarist: auto-assign to self if not specified
+        if manager_id is None:
+            manager_id = current_user.id
+        elif manager_id != current_user.id:
+            # Methodist can only assign to themselves
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Methodist can only assign subordinates to themselves",
+            )
+    elif creator_role == UserRole.ADMIN and manager_id is not None:
+        # Admin can assign to any admin or methodist
         result = await db.execute(select(User).where(User.id == manager_id))
         manager = result.scalar_one_or_none()
         if not manager:
@@ -81,7 +97,7 @@ async def create_invitation(
         token=token,
         email=invitation_data.email,
         role_name=invitation_data.role_name,
-        manager_id=invitation_data.manager_id,
+        manager_id=manager_id,
         created_by=current_user.id,
         used=False,
         expires_at=datetime.now(UTC) + timedelta(days=7),
