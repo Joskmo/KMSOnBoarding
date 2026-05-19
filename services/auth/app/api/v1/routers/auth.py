@@ -131,6 +131,13 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
                 detail="Invitation expired",
             )
 
+        # If invitation has a specific email, enforce it
+        if invitation.email and invitation.email != user_data.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Registration email does not match invitation email",
+            )
+
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
         email=user_data.email,

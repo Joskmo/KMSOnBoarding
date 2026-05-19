@@ -61,7 +61,7 @@ class LoginRequest(BaseModel):
 
 class InvitationCreate(BaseModel):
     role_name: str = Field(..., min_length=1, max_length=50)
-    email: str | None = Field(None, max_length=255)
+    email: EmailStr | None = Field(None, max_length=255)
     manager_id: UUID | None = None
 
     @field_validator("role_name")

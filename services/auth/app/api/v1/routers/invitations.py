@@ -34,6 +34,46 @@ async def create_invitation(
             detail="Cannot create invitation for this role",
         )
 
+    email = invitation_data.email
+
+    # If email is provided, check that no user with this email already exists
+    if email:
+        result = await db.execute(select(User).where(User.email == email))
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="User with this email already exists",
+            )
+
+    # If email is provided, check for an active (unused, not expired) invitation
+    if email:
+        result = await db.execute(
+            select(Invitation).where(
+                Invitation.email == email,
+                Invitation.used == False,  # noqa: E712
+                Invitation.expires_at > datetime.now(UTC),
+            )
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            return existing
+
+    # Validate manager_id if provided
+    manager_id = invitation_data.manager_id
+    if manager_id is not None:
+        result = await db.execute(select(User).where(User.id == manager_id))
+        manager = result.scalar_one_or_none()
+        if not manager:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Manager not found",
+            )
+        if manager.role not in (UserRole.ADMIN, UserRole.METHODIST):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Manager must be an admin or methodist",
+            )
+
     # Generate unique token
     token = str(uuid4())
 

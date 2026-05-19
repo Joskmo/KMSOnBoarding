@@ -349,6 +349,115 @@ async def test_candidate_cannot_create_invitation(client):
 
 
 @pytest.mark.asyncio
+async def test_create_invitation_for_existing_user_email(client):
+    """Creating invitation for an already registered email returns 422."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "admin@example.com",
+            "role_name": UserRole.CANDIDATE,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 422
+    assert "already exists" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_invitation_idempotent(client):
+    """Creating invitation for same active email returns existing invitation."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # First invitation
+    response1 = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "dup@example.com",
+            "role_name": UserRole.CANDIDATE,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response1.status_code == 201
+    token1 = response1.json()["token"]
+
+    # Second invitation for same email — should return existing
+    response2 = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "dup@example.com",
+            "role_name": UserRole.CANDIDATE,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response2.status_code == 201
+    assert response2.json()["token"] == token1
+
+
+@pytest.mark.asyncio
+async def test_register_with_wrong_email_for_invitation(client):
+    """Registration with email different from invitation email returns 400."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "specific@example.com",
+            "role_name": UserRole.CANDIDATE,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "other@example.com",
+            "password": "password123",
+            "full_name": "Wrong Email",
+            "invitation_token": invite_token,
+        },
+    )
+    assert response.status_code == 400
+    assert "does not match" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_register_with_matching_email_for_invitation(client):
+    """Registration with matching invitation email succeeds."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={
+            "email": "match@example.com",
+            "role_name": UserRole.CANDIDATE,
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "match@example.com",
+            "password": "password123",
+            "full_name": "Matching Email",
+            "invitation_token": invite_token,
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["email"] == "match@example.com"
+    assert data["role"] == UserRole.CANDIDATE
+
+
+@pytest.mark.asyncio
 async def test_seminarist_cannot_list_invitations(client):
     """Seminarist gets 403 when trying to list invitations."""
     await create_user(client, "admin@example.com", "password123", "Admin")
