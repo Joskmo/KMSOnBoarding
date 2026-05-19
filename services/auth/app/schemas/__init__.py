@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RoleBase(BaseModel):
@@ -35,6 +35,14 @@ class UserUpdate(BaseModel):
     password: str | None = Field(None, min_length=8, max_length=100)
     is_active: bool | None = None
     manager_id: UUID | None = None
+
+    @field_validator("manager_id", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty string to None for manager_id."""
+        if v == "":
+            return None
+        return v
 
 
 class UserResponse(UserBase):

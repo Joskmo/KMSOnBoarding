@@ -112,10 +112,10 @@ class Invitation(Base):
         ForeignKey("users.id"),
         nullable=True,
     )
-    created_by: Mapped[uuid.UUID] = mapped_column(
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("users.id"),
-        nullable=False,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
     used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     used_by: Mapped[uuid.UUID | None] = mapped_column(
