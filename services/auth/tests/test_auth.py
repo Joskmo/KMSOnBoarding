@@ -77,6 +77,20 @@ async def test_login_invalid_credentials(client):
 
 
 @pytest.mark.asyncio
+async def test_register_short_password_returns_422(client):
+    """Test registration with password < 8 chars returns 422."""
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "admin@example.com",
+            "password": "my_pass",
+            "full_name": "Admin User",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_get_me_unauthorized(client):
     """Test accessing /me without token returns 401."""
     response = await client.get("/api/v1/users/me")
