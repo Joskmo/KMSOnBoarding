@@ -87,7 +87,7 @@ class InvitationResponse(BaseModel):
     email: str | None
     role_id: UUID
     manager_id: UUID | None
-    created_by: UUID
+    created_by: UUID | None
     used: bool
     used_by: UUID | None
     expires_at: datetime

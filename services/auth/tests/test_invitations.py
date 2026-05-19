@@ -306,3 +306,33 @@ async def test_delete_invitation(client, db):
         "/api/v1/invitations/", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert len(response.json()) == 0
+
+
+@pytest.mark.asyncio
+async def test_list_invitations_with_null_created_by(client, db):
+    """Listing invitations with created_by=None must not raise 500."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    role_result = await db.execute(Role.__table__.select().where(Role.name == UserRole.CANDIDATE))
+    candidate_role = role_result.fetchone()
+
+    # Create invitation without created_by (simulating ON DELETE SET NULL)
+    orphan_invite = Invitation(
+        token=str(uuid4()),
+        email="orphan@example.com",
+        role_id=candidate_role.id,
+        created_by=None,
+        used=False,
+        expires_at=datetime.now(UTC) + timedelta(days=7),
+    )
+    db.add(orphan_invite)
+    await db.commit()
+
+    response = await client.get(
+        "/api/v1/invitations/", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["created_by"] is None
