@@ -1,0 +1,48 @@
+{
+    "folders": [
+        {
+            "name": "KMS Root",
+            "path": "."
+        },
+        {
+            "name": "Auth Service",
+            "path": "services/auth"
+        },
+        {
+            "name": "Content Service",
+            "path": "services/content"
+        },
+        {
+            "name": "Assessment Service",
+            "path": "services/assessment"
+        },
+        {
+            "name": "Frontend",
+            "path": "frontend"
+        }
+    ],
+    "settings": {
+        "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff",
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.fixAll.ruff": "explicit",
+                "source.organizeImports.ruff": "explicit"
+            }
+        },
+        "ruff.configuration": "${workspaceFolder:KMS Root}/ruff.toml",
+        "python.analysis.typeCheckingMode": "basic",
+        "python.analysis.autoImportCompletions": true,
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.venv": true,
+            "**/.pytest_cache": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "charliermarsh.ruff"
+        ]
+    }
+}

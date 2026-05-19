@@ -18,6 +18,7 @@ user_roles = Table(
     ),
 )
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -30,6 +31,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     roles = relationship("Role", secondary=user_roles, back_populates="users")
+
 
 class Role(Base):
     __tablename__ = "roles"
