@@ -1,23 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-
-class RoleBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=50)
-    description: str | None = Field(None, max_length=255)
-
-
-class RoleCreate(RoleBase):
-    pass
-
-
-class RoleResponse(RoleBase):
-    id: UUID
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+from app.core.enums import UserRole
 
 
 class UserBase(BaseModel):
@@ -46,20 +32,14 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: UUID
+    role: str
     is_active: bool
     created_at: datetime
     updated_at: datetime
     manager_id: UUID | None = None
     invited_by: UUID | None = None
-    roles: list[RoleResponse] = Field(default=[], exclude=True)
 
     model_config = ConfigDict(from_attributes=True)
-
-    @computed_field
-    @property
-    def role(self) -> RoleResponse | None:
-        """Return the user's primary (and only) role."""
-        return self.roles[0] if self.roles else None
 
 
 class Token(BaseModel):
@@ -80,16 +60,24 @@ class LoginRequest(BaseModel):
 
 
 class InvitationCreate(BaseModel):
-    role_id: UUID
+    role_name: str = Field(..., min_length=1, max_length=50)
     email: str | None = Field(None, max_length=255)
     manager_id: UUID | None = None
+
+    @field_validator("role_name")
+    @classmethod
+    def validate_role_name(cls, v: str) -> str:
+        """Ensure role_name is a valid UserRole enum value."""
+        if v not in UserRole:
+            raise ValueError("Invalid role name")
+        return v
 
 
 class InvitationResponse(BaseModel):
     id: UUID
     token: str
     email: str | None
-    role_id: UUID
+    role_name: str
     manager_id: UUID | None
     created_by: UUID | None
     used: bool

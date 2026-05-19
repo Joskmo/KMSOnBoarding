@@ -4,8 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
-from app.core.enums import UserRole
-from app.db.models import Base, Role
+from app.db.models import Base
 from app.db.session import get_db
 from app.main import app
 
@@ -32,23 +31,11 @@ async def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
-ROLES = [
-    {"name": UserRole.ADMIN, "description": "Administrator with full access"},
-    {"name": UserRole.METHODIST, "description": "Content creator and manager"},
-    {"name": UserRole.SEMINARIST, "description": "Seminar conductor"},
-    {"name": UserRole.CANDIDATE, "description": "Learner and test taker"},
-]
-
-
 @pytest_asyncio.fixture(autouse=True)
 async def setup_database():
-    """Create and drop database tables for each test, seed roles."""
+    """Create and drop database tables for each test."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    async with async_session() as session:
-        for role_data in ROLES:
-            session.add(Role(**role_data))
-        await session.commit()
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

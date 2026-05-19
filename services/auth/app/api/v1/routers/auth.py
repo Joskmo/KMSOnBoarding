@@ -6,7 +6,6 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.enums import UserRole
@@ -18,7 +17,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
 )
-from app.db.models import Invitation, Role, User
+from app.db.models import Invitation, User
 from app.db.session import get_db
 from app.schemas import RegisterWithInvitation, Token, UserResponse
 
@@ -36,9 +35,7 @@ async def get_redis() -> Redis:
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> User | None:
     """Authenticate a user by email and password."""
-    result = await db.execute(
-        select(User).where(User.email == email).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
         return None
@@ -76,9 +73,7 @@ async def get_current_user(
     if user_id is None:
         raise credentials_exception
 
-    result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
@@ -94,13 +89,12 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
     All subsequent users require a valid invitation token.
     """
     # Check duplicate email first
-    result = await db.execute(
-        select(User).where(User.email == user_data.email).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.email == user_data.email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
         )
 
     # Check if this is the first user
@@ -113,7 +107,8 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
         # Require invitation token
         if not user_data.invitation_token:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation token required"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation token required",
             )
 
         result = await db.execute(
@@ -122,33 +117,34 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
         invitation = result.scalar_one_or_none()
         if not invitation:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invitation token"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid invitation token",
             )
         if invitation.used:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation already used"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation already used",
             )
         if invitation.expires_at < datetime.now(UTC):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation expired"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation expired",
             )
 
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
-        email=user_data.email, hashed_password=hashed_password, full_name=user_data.full_name
+        email=user_data.email,
+        hashed_password=hashed_password,
+        full_name=user_data.full_name,
     )
 
     if is_first_user:
         # First user gets admin role
-        role_result = await db.execute(select(Role).where(Role.name == UserRole.ADMIN))
-        admin_role = role_result.scalar_one()
-        new_user.roles.append(admin_role)
+        new_user.role = UserRole.ADMIN
     else:
         assert invitation is not None
         # Assign role from invitation
-        role_result = await db.execute(select(Role).where(Role.id == invitation.role_id))
-        role = role_result.scalar_one()
-        new_user.roles.append(role)
+        new_user.role = invitation.role_name
         new_user.manager_id = invitation.manager_id
         new_user.invited_by = invitation.created_by
 
@@ -159,9 +155,7 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
     db.add(new_user)
     await db.commit()
 
-    result = await db.execute(
-        select(User).where(User.id == new_user.id).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.id == new_user.id))
     return result.scalar_one()
 
 
@@ -218,13 +212,16 @@ async def logout(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str, db: AsyncSession = Depends(get_db), redis: Redis = Depends(get_redis)
+    refresh_token: str,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ) -> Token:
     """Refresh access token using a valid refresh token."""
     payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
         )
 
     jti = payload.get("jti")
@@ -232,18 +229,18 @@ async def refresh_token(
         is_blacklisted = await redis.get(f"blacklist:{jti}")
         if is_blacklisted:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has been revoked"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been revoked",
             )
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
         )
 
-    result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")

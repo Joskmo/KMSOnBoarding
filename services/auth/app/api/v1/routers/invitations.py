@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import UserRole
 from app.core.permissions import can_create_invitation, require_manager_or_admin
-from app.db.models import Invitation, Role, User
+from app.db.models import Invitation, User
 from app.db.session import get_db
 from app.schemas import InvitationCreate, InvitationResponse
 
@@ -26,18 +26,9 @@ async def create_invitation(
     current_user: User = Depends(require_manager_or_admin),
 ) -> Invitation:
     """Create a new invitation token for user registration."""
-    creator_role = current_user.roles[0].name if current_user.roles else ""
+    creator_role = current_user.role
 
-    # Validate role exists
-    result = await db.execute(select(Role).where(Role.id == invitation_data.role_id))
-    role = result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Role not found",
-        )
-
-    if not can_create_invitation(creator_role, role.name):
+    if not can_create_invitation(creator_role, invitation_data.role_name):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot create invitation for this role",
@@ -49,7 +40,7 @@ async def create_invitation(
     invitation = Invitation(
         token=token,
         email=invitation_data.email,
-        role_id=invitation_data.role_id,
+        role_name=invitation_data.role_name,
         manager_id=invitation_data.manager_id,
         created_by=current_user.id,
         used=False,
@@ -69,7 +60,7 @@ async def list_invitations(
     current_user: User = Depends(require_manager_or_admin),
 ) -> list[Invitation]:
     """List invitations created by the current user (or all for admin)."""
-    creator_role = current_user.roles[0].name if current_user.roles else ""
+    creator_role = current_user.role
 
     if creator_role == UserRole.ADMIN:
         result = await db.execute(select(Invitation))
@@ -96,7 +87,7 @@ async def delete_invitation(
             detail="Invitation not found",
         )
 
-    creator_role = current_user.roles[0].name if current_user.roles else ""
+    creator_role = current_user.role
     if creator_role != UserRole.ADMIN and invitation.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

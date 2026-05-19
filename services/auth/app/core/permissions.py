@@ -23,21 +23,13 @@ ROLE_HIERARCHY = {
 }
 
 
-def _get_primary_role(user: User) -> str | None:
-    """Return the first role name for a user, or None."""
-    if not user.roles:
-        return None
-    return user.roles[0].name
-
-
 def require_role(allowed_roles: Sequence[str]):
     """FastAPI dependency factory that allows only specified roles."""
 
     async def checker(
         current_user: User = Depends(get_current_user),
     ) -> User:
-        primary = _get_primary_role(current_user)
-        if primary not in allowed_roles:
+        if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",
@@ -51,8 +43,7 @@ async def require_admin(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """Require admin role."""
-    primary = _get_primary_role(current_user)
-    if primary != UserRole.ADMIN:
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
@@ -64,8 +55,7 @@ async def require_manager_or_admin(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """Require methodist or admin role."""
-    primary = _get_primary_role(current_user)
-    if primary not in (UserRole.ADMIN, UserRole.METHODIST):
+    if current_user.role not in (UserRole.ADMIN, UserRole.METHODIST):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager or admin access required",
@@ -93,10 +83,9 @@ async def can_transfer_user(
     db: AsyncSession,
 ) -> bool:
     """Check if current_user can transfer target_user to new_manager_id."""
-    current_role = _get_primary_role(current_user)
-    if current_role == UserRole.ADMIN:
+    if current_user.role == UserRole.ADMIN:
         return True
-    if current_role == UserRole.METHODIST:
+    if current_user.role == UserRole.METHODIST:
         # Can only transfer own subordinates
         if target_user.manager_id != current_user.id:
             return False
@@ -105,8 +94,7 @@ async def can_transfer_user(
         new_manager = result.scalar_one_or_none()
         if not new_manager:
             return False
-        manager_role = _get_primary_role(new_manager)
-        return manager_role == UserRole.METHODIST
+        return new_manager.role == UserRole.METHODIST
     return False
 
 
@@ -115,9 +103,8 @@ async def can_manage_user(
     target_user: User,
 ) -> bool:
     """Check if current_user can view/manage target_user."""
-    current_role = _get_primary_role(current_user)
-    if current_role == UserRole.ADMIN:
+    if current_user.role == UserRole.ADMIN:
         return True
-    if current_role == UserRole.METHODIST:
+    if current_user.role == UserRole.METHODIST:
         return target_user.manager_id == current_user.id
     return current_user.id == target_user.id

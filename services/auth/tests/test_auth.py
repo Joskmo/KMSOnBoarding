@@ -16,8 +16,7 @@ async def test_register_first_user_becomes_admin(client):
     assert data["full_name"] == "Admin User"
     assert "id" in data
     # Check role
-    assert data["role"] is not None
-    assert data["role"]["name"] == UserRole.ADMIN
+    assert data["role"] == UserRole.ADMIN
 
 
 @pytest.mark.asyncio

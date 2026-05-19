@@ -1,31 +1,13 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     """Base class for SQLAlchemy models."""
-
-
-user_roles = Table(
-    "user_roles",
-    Base.metadata,
-    Column(
-        "user_id",
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column(
-        "role_id",
-        PG_UUID(as_uuid=True),
-        ForeignKey("roles.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-)
 
 
 class User(Base):
@@ -37,6 +19,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -58,7 +41,6 @@ class User(Base):
         nullable=True,
     )
 
-    roles: Mapped[list["Role"]] = relationship("Role", secondary=user_roles, back_populates="users")
     manager: Mapped["User | None"] = relationship(
         "User",
         remote_side="User.id",
@@ -78,22 +60,6 @@ class User(Base):
     )
 
 
-class Role(Base):
-    __tablename__ = "roles"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
-
-    users: Mapped[list["User"]] = relationship("User", secondary=user_roles, back_populates="roles")
-    invitations: Mapped[list["Invitation"]] = relationship("Invitation", back_populates="role")
-
-
 class Invitation(Base):
     __tablename__ = "invitations"
 
@@ -102,11 +68,7 @@ class Invitation(Base):
     )
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("roles.id"),
-        nullable=False,
-    )
+    role_name: Mapped[str] = mapped_column(String(50), nullable=False)
     manager_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id"),
@@ -128,7 +90,6 @@ class Invitation(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
-    role: Mapped["Role"] = relationship("Role", back_populates="invitations")
     creator: Mapped["User"] = relationship(
         "User",
         foreign_keys=[created_by],

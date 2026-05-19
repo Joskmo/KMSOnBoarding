@@ -3,7 +3,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.v1.routers.auth import get_current_user
 from app.core.enums import UserRole
@@ -17,7 +16,8 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/", response_model=list[UserResponse])
 async def list_users(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[User]:
     """List users.
 
@@ -25,18 +25,14 @@ async def list_users(
     Methodist sees only their subordinates.
     Others see only themselves.
     """
-    current_role = current_user.roles[0].name if current_user.roles else ""
+    current_role = current_user.role
 
     if current_role == UserRole.ADMIN:
-        result = await db.execute(select(User).options(selectinload(User.roles)))
+        result = await db.execute(select(User))
     elif current_role == UserRole.METHODIST:
-        result = await db.execute(
-            select(User).where(User.manager_id == current_user.id).options(selectinload(User.roles))
-        )
+        result = await db.execute(select(User).where(User.manager_id == current_user.id))
     else:
-        result = await db.execute(
-            select(User).where(User.id == current_user.id).options(selectinload(User.roles))
-        )
+        result = await db.execute(select(User).where(User.id == current_user.id))
 
     return list(result.scalars().all())
 
@@ -54,9 +50,7 @@ async def get_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """Get a user by ID."""
-    result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -81,9 +75,7 @@ async def update_user(
 
     Supports transferring a user to another manager via manager_id.
     """
-    result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -115,9 +107,7 @@ async def update_user(
 
     await db.commit()
 
-    result = await db.execute(
-        select(User).where(User.id == user.id).options(selectinload(User.roles))
-    )
+    result = await db.execute(select(User).where(User.id == user.id))
     return result.scalar_one()
 
 
@@ -133,7 +123,7 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    current_role = current_user.roles[0].name if current_user.roles else ""
+    current_role = current_user.role
     if current_role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
