@@ -102,6 +102,9 @@ split-on-trailing-comma = true
     "B008",  # Depends() in default arguments is standard FastAPI pattern
     "ARG001", # Unused arguments are standard for auth dependency injection
 ]
+"services/**/core/permissions.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+]
 
 
 [format]

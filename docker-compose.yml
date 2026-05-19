@@ -22,6 +22,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_auth:5432/kms_auth
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
     depends_on:
       - db_auth
       - redis
@@ -58,40 +60,44 @@ services:
       - kms_internal
 
   db_auth:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: kms_auth
       POSTGRES_USER: kms
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pg_auth_data:/var/lib/postgresql/data
+      - pg_auth_data:/var/lib/postgresql
+    ports:
+      - "5433:5432"
     networks:
       - kms_internal
 
   db_content:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: kms_content
       POSTGRES_USER: kms
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pg_content_data:/var/lib/postgresql/data
+      - pg_content_data:/var/lib/postgresql
     networks:
       - kms_internal
 
   db_assessment:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: kms_assessment
       POSTGRES_USER: kms
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pg_assessment_data:/var/lib/postgresql/data
+      - pg_assessment_data:/var/lib/postgresql
     networks:
       - kms_internal
 
   redis:
     image: redis:8.6-alpine
+    ports:
+      - "6379:6379"
     networks:
       - kms_internal
 

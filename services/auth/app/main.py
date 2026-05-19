@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.v1.routers import auth, roles, users
+from app.api.v1.routers import auth, invitations, roles, users
 
 app = FastAPI(
     title="KMS Auth Service",
@@ -12,6 +12,7 @@ app = FastAPI(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(roles.router, prefix="/api/v1")
+app.include_router(invitations.router, prefix="/api/v1")
 
 
 @app.get("/health")
