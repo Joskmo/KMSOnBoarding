@@ -140,6 +140,7 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
 
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
+        id=uuid4(),
         email=user_data.email,
         hashed_password=hashed_password,
         full_name=user_data.full_name,

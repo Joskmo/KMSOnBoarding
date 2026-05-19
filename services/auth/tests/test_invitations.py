@@ -829,3 +829,42 @@ async def test_admin_auto_assigns_self_as_manager(client):
     )
     assert response.status_code == 201
     assert response.json()["manager_id"] == admin["id"]
+
+
+@pytest.mark.asyncio
+async def test_invitation_used_by_set_after_registration(client):
+    """After registration invitation.used_by must contain the new user ID."""
+    await create_user(client, "admin@example.com", "password123", "Admin")
+    admin_token = await login_user(client, "admin@example.com", "password123")
+
+    # Admin creates invitation
+    response = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "candidate@example.com", "role_name": UserRole.CANDIDATE},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = response.json()["token"]
+
+    # Register with the invitation
+    reg_response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "candidate@example.com",
+            "password": "password123",
+            "full_name": "Candidate",
+            "invitation_token": invite_token,
+        },
+    )
+    assert reg_response.status_code == 201
+    new_user_id = reg_response.json()["id"]
+
+    # Verify invitation shows used_by
+    response = await client.get(
+        "/api/v1/invitations/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+    invites = response.json()
+    assert len(invites) == 1
+    assert invites[0]["used"] is True
+    assert invites[0]["used_by"] == new_user_id
