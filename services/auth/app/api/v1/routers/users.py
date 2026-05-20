@@ -1,13 +1,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.routers.auth import get_current_user
 from app.core.enums import UserRole
 from app.core.permissions import can_manage_user, can_transfer_user
-from app.db.models import User
+from app.db.models import Invitation, User
 from app.db.session import get_db
 from app.schemas import UserResponse, UserUpdate
 
@@ -121,18 +121,51 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete a user by ID."""
+    """Delete a user by ID.
+
+    Cannot delete users with active subordinates.
+    Revokes all invitations created by or assigned to the user.
+    """
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
-    current_role = current_user.role
-    if current_role != UserRole.ADMIN:
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin can delete users",
         )
+
+    # Check for active subordinates
+    subordinates_result = await db.execute(
+        select(User).where(User.manager_id == user_id)
+    )
+    if subordinates_result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete user with active subordinates. Transfer them first.",
+        )
+
+    # Security: delete invitations created by this user
+    await db.execute(delete(Invitation).where(Invitation.created_by == user_id))
+
+    # Delete invitations where this user is assigned as manager
+    await db.execute(delete(Invitation).where(Invitation.manager_id == user_id))
+
+    # Clear used_by references to avoid FK constraint violations
+    await db.execute(
+        update(Invitation)
+        .where(Invitation.used_by == user_id)
+        .values(used_by=None)
+    )
+
+    # Clear invited_by references to avoid FK constraint violations
+    await db.execute(
+        update(User).where(User.invited_by == user_id).values(invited_by=None)
+    )
 
     await db.delete(user)
     await db.commit()
