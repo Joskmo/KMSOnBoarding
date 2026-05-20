@@ -52,7 +52,7 @@ async def get_current_user(
     """Validate token and return the current authenticated user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -95,7 +95,7 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            detail="Email уже зарегистрирован",
         )
 
     # Check if this is the first user
@@ -109,7 +109,7 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
         if not user_data.invitation_token:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invitation token required",
+                detail="Требуется токен инвайта",
             )
 
         result = await db.execute(
@@ -119,24 +119,24 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
         if not invitation:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid invitation token",
+                detail="Недействительный токен инвайта",
             )
         if invitation.used:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invitation already used",
+                detail="Инвайт уже использован",
             )
         if invitation.expires_at < datetime.now(UTC):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invitation expired",
+                detail="Инвайт истек",
             )
 
         # If invitation has a specific email, enforce it
         if invitation.email and invitation.email != user_data.email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration email does not match invitation email",
+                detail="Email регистрации не совпадает с email инвайта",
             )
 
     hashed_password = get_password_hash(user_data.password)
@@ -182,7 +182,7 @@ async def login(
     if attempts and int(attempts) >= 5:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many login attempts. Please try again later.",
+            detail="Слишком много попыток входа. Попробуйте позже.",
         )
 
     user = await authenticate_user(db, form_data.username, form_data.password)
@@ -191,7 +191,7 @@ async def login(
         await redis.expire(rate_key, 60)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Неверный email или пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -237,7 +237,7 @@ async def refresh_token(
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
+            detail="Недействительный refresh токен",
         )
 
     jti = payload.get("jti")
@@ -246,20 +246,20 @@ async def refresh_token(
         if is_blacklisted:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token has been revoked",
+                detail="Refresh токен отозван",
             )
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
+            detail="Недействительный refresh токен",
         )
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
 
     access_token = create_access_token(
         data={
