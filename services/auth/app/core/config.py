@@ -3,7 +3,9 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_ROOT_DIR = Path(__file__).resolve().parents[4]
+_ROOT_DIR = Path(__file__).resolve()
+for _ in range(4):
+    _ROOT_DIR = _ROOT_DIR.parent
 
 
 class Settings(BaseSettings):
