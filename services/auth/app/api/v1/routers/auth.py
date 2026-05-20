@@ -70,7 +70,8 @@ async def get_current_user(
             raise credentials_exception
 
     user_id = payload.get("sub")
-    if user_id is None:
+    role = payload.get("role")
+    if user_id is None or role is None:
         raise credentials_exception
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -195,7 +196,10 @@ async def login(
         )
 
     await redis.delete(rate_key)
-    access_token = create_access_token(data={"sub": str(user.id), "jti": str(uuid4())})
+    access_token = create_access_token(
+        data={"sub": str(user.id), "jti": str(uuid4())},
+        role=user.role,
+    )
     refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
 
     return Token(access_token=access_token, refresh_token=refresh_token)
@@ -253,7 +257,10 @@ async def refresh_token(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    access_token = create_access_token(data={"sub": str(user.id), "jti": str(uuid4())})
+    access_token = create_access_token(
+        data={"sub": str(user.id), "jti": str(uuid4())},
+        role=user.role,
+    )
     new_refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
 
     return Token(access_token=access_token, refresh_token=new_refresh_token)
