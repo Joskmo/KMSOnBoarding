@@ -29,7 +29,7 @@ async def get_next_order_index(db: AsyncSession, module_id: UUID) -> int:
         .where(Lesson.module_id == module_id)
         .order_by(Lesson.order_index.desc())
     )
-    max_index = result.scalar_one_or_none()
+    max_index = result.scalars().first()
     return (max_index + 1) if max_index is not None else 0
 
 
