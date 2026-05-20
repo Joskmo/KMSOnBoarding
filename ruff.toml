@@ -98,11 +98,18 @@ split-on-trailing-comma = true
     "D",     # Don't require docstrings in migrations
     "ARG001", # Unused arguments in migration functions
 ]
+"services/**/api/**/*.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+    "ARG001", # Unused arguments are standard for auth dependency injection
+]
 "services/**/api/**/routers/*.py" = [
     "B008",  # Depends() in default arguments is standard FastAPI pattern
     "ARG001", # Unused arguments are standard for auth dependency injection
 ]
 "services/**/core/permissions.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+]
+"services/**/core/deps.py" = [
     "B008",  # Depends() in default arguments is standard FastAPI pattern
 ]
 

@@ -36,8 +36,11 @@ services:
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=${CONTENT_DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
     depends_on:
       - db_content
+      - redis
     networks:
       - kms_internal
 
