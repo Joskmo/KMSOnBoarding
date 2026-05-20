@@ -112,3 +112,160 @@ async def test_get_me_authorized(client):
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "test@example.com"
+
+
+@pytest.mark.asyncio
+async def test_methodist_can_get_own_profile(client):
+    """Methodist should be able to view their own profile."""
+    # Register admin first
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@example.com", "password": "password123", "full_name": "Admin"},
+    )
+    admin_login = await client.post(
+        "/api/v1/auth/login", data={"username": "admin@example.com", "password": "password123"}
+    )
+    admin_token = admin_login.json()["access_token"]
+
+    # Admin creates invitation for methodist
+    invite_resp = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_name": "methodist"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = invite_resp.json()["token"]
+
+    # Methodist registers
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "methodist@example.com",
+            "password": "password123",
+            "full_name": "Methodist",
+            "invitation_token": invite_token,
+        },
+    )
+    methodist_login = await client.post(
+        "/api/v1/auth/login",
+        data={"username": "methodist@example.com", "password": "password123"},
+    )
+    methodist_token = methodist_login.json()["access_token"]
+
+    # Get methodist ID from /me
+    me_resp = await client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    methodist_id = me_resp.json()["id"]
+
+    # Methodist gets own profile
+    response = await client.get(
+        f"/api/v1/users/{methodist_id}",
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "methodist@example.com"
+    assert data["role"] == "methodist"
+
+
+@pytest.mark.asyncio
+async def test_methodist_can_update_own_profile(client):
+    """Methodist should be able to update their own profile."""
+    # Register admin
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@example.com", "password": "password123", "full_name": "Admin"},
+    )
+    admin_login = await client.post(
+        "/api/v1/auth/login", data={"username": "admin@example.com", "password": "password123"}
+    )
+    admin_token = admin_login.json()["access_token"]
+
+    # Create and register methodist
+    invite_resp = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_name": "methodist"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = invite_resp.json()["token"]
+
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "methodist@example.com",
+            "password": "password123",
+            "full_name": "Methodist",
+            "invitation_token": invite_token,
+        },
+    )
+    methodist_login = await client.post(
+        "/api/v1/auth/login",
+        data={"username": "methodist@example.com", "password": "password123"},
+    )
+    methodist_token = methodist_login.json()["access_token"]
+
+    # Get methodist ID from /me
+    me_resp = await client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    methodist_id = me_resp.json()["id"]
+
+    # Methodist updates own full_name
+    response = await client.put(
+        f"/api/v1/users/{methodist_id}",
+        json={"full_name": "Updated Methodist"},
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["full_name"] == "Updated Methodist"
+
+
+@pytest.mark.asyncio
+async def test_methodist_list_includes_self(client):
+    """Methodist user list should include themselves."""
+    # Register admin
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@example.com", "password": "password123", "full_name": "Admin"},
+    )
+    admin_login = await client.post(
+        "/api/v1/auth/login", data={"username": "admin@example.com", "password": "password123"}
+    )
+    admin_token = admin_login.json()["access_token"]
+
+    # Create and register methodist
+    invite_resp = await client.post(
+        "/api/v1/invitations/",
+        json={"email": "methodist@example.com", "role_name": "methodist"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    invite_token = invite_resp.json()["token"]
+
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "methodist@example.com",
+            "password": "password123",
+            "full_name": "Methodist",
+            "invitation_token": invite_token,
+        },
+    )
+    methodist_login = await client.post(
+        "/api/v1/auth/login",
+        data={"username": "methodist@example.com", "password": "password123"},
+    )
+    methodist_token = methodist_login.json()["access_token"]
+
+    # Methodist lists users - should see themselves even with no subordinates
+    response = await client.get(
+        "/api/v1/users/",
+        headers={"Authorization": f"Bearer {methodist_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["email"] == "methodist@example.com"
+    assert data[0]["role"] == "methodist"

@@ -22,7 +22,7 @@ async def list_users(
     """List users.
 
     Admin sees all users.
-    Methodist sees only their subordinates.
+    Methodist sees themselves and their subordinates.
     Others see only themselves.
     """
     current_role = current_user.role
@@ -30,7 +30,11 @@ async def list_users(
     if current_role == UserRole.ADMIN:
         result = await db.execute(select(User))
     elif current_role == UserRole.METHODIST:
-        result = await db.execute(select(User).where(User.manager_id == current_user.id))
+        result = await db.execute(
+            select(User).where(
+                (User.manager_id == current_user.id) | (User.id == current_user.id)
+            )
+        )
     else:
         result = await db.execute(select(User).where(User.id == current_user.id))
 

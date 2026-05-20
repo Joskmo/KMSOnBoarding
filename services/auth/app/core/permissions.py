@@ -106,5 +106,8 @@ async def can_manage_user(
     if current_user.role == UserRole.ADMIN:
         return True
     if current_user.role == UserRole.METHODIST:
-        return target_user.manager_id == current_user.id
+        return (
+            target_user.manager_id == current_user.id
+            or current_user.id == target_user.id
+        )
     return current_user.id == target_user.id
