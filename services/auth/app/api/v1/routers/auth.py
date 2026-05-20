@@ -197,7 +197,11 @@ async def login(
 
     await redis.delete(rate_key)
     access_token = create_access_token(
-        data={"sub": str(user.id), "jti": str(uuid4())},
+        data={
+            "sub": str(user.id),
+            "jti": str(uuid4()),
+            "manager_id": str(user.manager_id) if user.manager_id else None,
+        },
         role=user.role,
     )
     refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
@@ -258,7 +262,11 @@ async def refresh_token(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     access_token = create_access_token(
-        data={"sub": str(user.id), "jti": str(uuid4())},
+        data={
+            "sub": str(user.id),
+            "jti": str(uuid4()),
+            "manager_id": str(user.manager_id) if user.manager_id else None,
+        },
         role=user.role,
     )
     new_refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
