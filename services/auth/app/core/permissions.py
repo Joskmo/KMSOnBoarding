@@ -32,7 +32,7 @@ def require_role(allowed_roles: Sequence[str]):
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
+                detail="Недостаточно прав",
             )
         return current_user
 
@@ -46,7 +46,7 @@ async def require_admin(
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
+            detail="Требуется доступ админа",
         )
     return current_user
 
@@ -58,7 +58,7 @@ async def require_manager_or_admin(
     if current_user.role not in (UserRole.ADMIN, UserRole.METHODIST):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Manager or admin access required",
+            detail="Требуется доступ менеджера или админа",
         )
     return current_user
 
@@ -98,11 +98,28 @@ async def can_transfer_user(
     return False
 
 
-async def can_manage_user(
+async def can_view_user(
     current_user: User,
     target_user: User,
 ) -> bool:
-    """Check if current_user can view/manage target_user."""
+    """Check if current_user can view target_user details."""
+    if current_user.role == UserRole.ADMIN:
+        return True
+    if current_user.role == UserRole.METHODIST:
+        return True
+    return current_user.id == target_user.id
+
+
+async def can_edit_user(
+    current_user: User,
+    target_user: User,
+) -> bool:
+    """Check if current_user can edit target_user at all.
+
+    Admin can edit anyone.
+    Methodist can edit themselves and their subordinates.
+    Others can edit only themselves.
+    """
     if current_user.role == UserRole.ADMIN:
         return True
     if current_user.role == UserRole.METHODIST:
