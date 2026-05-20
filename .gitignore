@@ -7,3 +7,9 @@ __pycache__/
 node_modules/
 dist/
 build/
+docs
+notes
+.playwright/
+.playwright-mcp/
+.opencode/
+AGENTS.md

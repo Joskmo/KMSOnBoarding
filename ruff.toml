@@ -1,0 +1,119 @@
+# Ruff configuration for KMS monorepo
+# Run: cd services/<service> && uv run ruff check . && uv run ruff format --check .
+
+# Target Python version
+target-version = "py313"
+
+# Line length
+line-length = 100
+indent-width = 4
+
+[lint]
+# Comprehensive rule set for production-quality async Python code
+select = [
+    # Core style and errors
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    
+    # Code quality
+    "D",   # pydocstyle (docstrings)
+    "UP",  # pyupgrade (modern Python)
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    
+    # Async (CRITICAL for this project)
+    "ASYNC", # flake8-async
+    
+    # Security
+    "S",   # flake8-bandit
+    
+    # Testing
+    "PT",  # flake8-pytest-style
+    
+    # Import and type checking
+    "TCH", # flake8-type-checking
+    "TID", # flake8-tidy-imports
+    
+    # Best practices
+    "Q",   # flake8-quotes
+    "SLF", # flake8-self
+    "ARG", # flake8-unused-arguments
+    "ERA", # eradicate (commented code)
+    "PGH", # pygrep-hooks
+    "RUF", # ruff-specific rules
+]
+
+ignore = [
+    # Disable rules that are too strict for practical development
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D104",  # Missing docstring in public package
+    "D106",  # Missing docstring in public nested class
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D213",  # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "S101",  # Use of assert detected (pytest uses asserts)
+    "S105",  # Hardcoded password string (too many false positives)
+    "S311",  # Suspicious non-cryptographic random usage
+    "UP040", # Type statement (too new, not fully supported)
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[lint.pydocstyle]
+# Use Google-style docstrings
+convention = "google"
+
+[lint.flake8-quotes]
+# Use double quotes
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+[lint.flake8-type-checking]
+# Enforce type checking imports in TYPE_CHECKING blocks
+strict = true
+
+[lint.isort]
+# Import sorting configuration
+known-first-party = ["app"]
+known-local-folder = ["app"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+combine-as-imports = true
+split-on-trailing-comma = true
+
+[lint.per-file-ignores]
+# Relax rules for tests and alembic
+"tests/**/*.py" = [
+    "D",     # Don't require docstrings in tests
+    "S",     # Don't enforce security rules in tests
+    "ARG001", # Unused arguments in test fixtures
+]
+"**/alembic/**/*.py" = [
+    "D",     # Don't require docstrings in migrations
+    "ARG001", # Unused arguments in migration functions
+]
+"services/**/api/**/routers/*.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+    "ARG001", # Unused arguments are standard for auth dependency injection
+]
+"services/**/core/permissions.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+]
+
+
+[format]
+# Use double quotes
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+
+[lint.pep8-naming]
+# Allow specific names that violate conventions but are common in FastAPI
+ignore-names = ["X", "id", "T", "app"]
