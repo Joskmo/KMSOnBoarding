@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import create_question, create_test
+from tests.conftest import SEMINARIST_ID, create_question, create_test
 
 # ------------------------------------------------------------------
 # GET /api/v1/attempts/start/{test_id}
@@ -76,6 +76,71 @@ async def test_start_attempt_not_found(
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
     assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_start_attempt_candidate(
+    client: AsyncClient,
+    candidate_token: str,
+    db: AsyncSession,
+) -> None:
+    """Candidate can start an attempt."""
+    test_id = await create_test(db, title="Candidate Test", is_active=True)
+    await create_question(db, test_id)
+
+    response = await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {candidate_token}"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_start_inactive_test_forbidden(
+    client: AsyncClient,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Starting inactive test returns 403."""
+    test_id = await create_test(db, is_active=False)
+
+    response = await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_continue_existing_attempt(
+    client: AsyncClient,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Repeated start returns existing active attempt without creating new one."""
+    test_id = await create_test(db, title="Continue", is_active=True)
+    await create_question(db, test_id)
+
+    resp1 = await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+    assert resp1.status_code == 200
+
+    resp2 = await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+    assert resp2.status_code == 200
+
+    # Should still be only 1 active attempt in DB
+    response = await client.get(
+        "/api/v1/attempts/my",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+    data = response.json()
+    active = [a for a in data["items"] if a["score"] == 0 and not a["is_passed"]]
+    assert len(active) == 1
 
 
 # ------------------------------------------------------------------
@@ -377,6 +442,59 @@ async def test_submit_attempt_not_found(
     assert response.status_code == 404
 
 
+@pytest.mark.anyio
+async def test_submit_without_start(
+    client: AsyncClient,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Submitting without starting returns 404."""
+    test_id = await create_test(db, is_active=True)
+    q1 = await create_question(db, test_id)
+
+    response = await client.post(
+        "/api/v1/attempts",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+        json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_timeout_auto_fail(
+    client: AsyncClient,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Timed-out attempt is auto-failed and new one can be started."""
+    from datetime import UTC, datetime, timedelta
+
+    test_id = await create_test(db, title="Timeout", is_active=True)
+    await create_question(db, test_id)
+
+    # Start attempt
+    await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+
+    # Manually set started_at to 3 hours ago (simulate timeout)
+    from app.crud import attempt as attempt_crud
+
+    attempts, _ = await attempt_crud.get_multi(db, user_id=SEMINARIST_ID)
+    active = [a for a in attempts if a.test_id == test_id and a.score == 0 and not a.is_passed]
+    assert len(active) == 1
+    active[0].started_at = datetime.now(UTC) - timedelta(hours=3)
+    await db.commit()
+
+    # Next start should fail old attempt and allow new start
+    response = await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+    assert response.status_code == 200
+
+
 # ------------------------------------------------------------------
 # GET /api/v1/attempts/my
 # ------------------------------------------------------------------
@@ -390,17 +508,18 @@ async def test_list_my_attempts(
 ) -> None:
     """User can list their own attempts."""
     test_id = await create_test(db, is_active=True)
-    await create_question(db, test_id)
+    q1 = await create_question(db, test_id)
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
-    await client.post(
+    post_resp = await client.post(
         "/api/v1/attempts",
         headers={"Authorization": f"Bearer {seminarist_token}"},
-        json={"test_id": str(test_id), "answers": {str(uuid4()): ["a"]}},
+        json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
+    assert post_resp.status_code == 201
 
     response = await client.get(
         "/api/v1/attempts/my",
@@ -433,17 +552,18 @@ async def test_list_test_attempts(
 ) -> None:
     """Methodist can list attempts for their test."""
     test_id = await create_test(db, is_active=True)
-    await create_question(db, test_id)
+    q1 = await create_question(db, test_id)
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
-    await client.post(
+    post_resp = await client.post(
         "/api/v1/attempts",
         headers={"Authorization": f"Bearer {seminarist_token}"},
-        json={"test_id": str(test_id), "answers": {str(uuid4()): ["a"]}},
+        json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
+    assert post_resp.status_code == 201
 
     response = await client.get(
         f"/api/v1/attempts/test/{test_id}",

@@ -57,14 +57,15 @@ async def create(db: AsyncSession, *, obj_in: dict) -> Attempt:
 async def get_active_by_user_and_test(
     db: AsyncSession, user_id: UUID, test_id: UUID
 ) -> Attempt | None:
-    """Get an active (unfinished) attempt by user and test."""
+    """Get the most recent active (unfinished) attempt by user and test."""
     result = await db.execute(
         select(Attempt)
         .where(Attempt.user_id == user_id)
         .where(Attempt.test_id == test_id)
         .where(Attempt.started_at == Attempt.finished_at)
+        .order_by(Attempt.started_at.desc())
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def update(db: AsyncSession, *, db_obj: Attempt, obj_in: dict) -> Attempt:
