@@ -54,7 +54,8 @@ async def create_test(
     test_data["author_id"] = current_user["id"]
     test_data["manager_id"] = current_user["id"]
 
-    return await test_crud.create(db, obj_in=test_data)
+    test = await test_crud.create(db, obj_in=test_data)
+    return await test_crud.get_with_questions(db, test.id)
 
 
 @router.get("", response_model=PaginatedTests)
@@ -146,7 +147,8 @@ async def update_test(
         )
 
     update_data = test_in.model_dump(exclude_unset=True)
-    return await test_crud.update(db, db_obj=test, obj_in=update_data)
+    updated = await test_crud.update(db, db_obj=test, obj_in=update_data)
+    return await test_crud.get_with_questions(db, updated.id)
 
 
 @router.delete("/{test_id}", status_code=status.HTTP_204_NO_CONTENT)

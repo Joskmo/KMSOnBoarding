@@ -1,9 +1,11 @@
 """Pydantic schemas for tests."""
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from sqlalchemy import inspect as sa_inspect
 
 
 class TestBase(BaseModel):
@@ -42,12 +44,20 @@ class TestResponse(TestBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    question_count: int = 0
 
-    @computed_field
-    @property
-    def question_count(self) -> int:
-        """Return the number of questions in this test."""
-        return len(self.questions) if hasattr(self, "questions") else 0
+    @model_validator(mode="before")
+    @classmethod
+    def _compute_question_count(cls, data: Any) -> Any:
+        """Set question_count from eagerly loaded questions if available."""
+        if hasattr(data, "__mapper__"):
+            # SQLAlchemy instance
+            ins = sa_inspect(data)
+            if "questions" not in ins.unloaded:
+                data.question_count = len(data.questions)
+            else:
+                data.question_count = 0
+        return data
 
 
 class PaginatedTests(BaseModel):

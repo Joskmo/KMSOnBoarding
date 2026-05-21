@@ -11,7 +11,9 @@ from app.db.models import Test
 
 async def get(db: AsyncSession, test_id: UUID) -> Test | None:
     """Get a test by ID."""
-    result = await db.execute(select(Test).where(Test.id == test_id))
+    result = await db.execute(
+        select(Test).options(selectinload(Test.questions)).where(Test.id == test_id)
+    )
     return result.scalar_one_or_none()
 
 
@@ -34,7 +36,7 @@ async def get_multi(
     is_active: bool | None = None,
 ) -> tuple[list[Test], int]:
     """Get multiple tests with optional filtering and total count."""
-    query = select(Test)
+    query = select(Test).options(selectinload(Test.questions))
     count_query = select(func.count(Test.id))
 
     if module_id is not None:

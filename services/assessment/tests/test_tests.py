@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import METHODIST_2_ID, create_test
+from tests.conftest import METHODIST_2_ID, create_question, create_test
 
 # ------------------------------------------------------------------
 # POST /api/v1/tests
@@ -185,6 +185,52 @@ async def test_get_test_success(
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == "My Test"
+
+
+@pytest.mark.anyio
+async def test_get_test_question_count(
+    client: AsyncClient,
+    methodist1_token: str,
+    db: AsyncSession,
+) -> None:
+    """GET test returns correct question_count when questions exist."""
+    test_id = await create_test(db, title="Test with questions")
+    await create_question(db, test_id)
+    await create_question(db, test_id)
+
+    response = await client.get(
+        f"/api/v1/tests/{test_id}",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question_count"] == 2
+
+
+@pytest.mark.anyio
+async def test_list_tests_question_count(
+    client: AsyncClient,
+    methodist1_token: str,
+    db: AsyncSession,
+) -> None:
+    """LIST tests returns correct question_count for each test."""
+    test1_id = await create_test(db, title="Test 1")
+    await create_question(db, test1_id)
+    test2_id = await create_test(db, title="Test 2")
+    await create_question(db, test2_id)
+    await create_question(db, test2_id)
+
+    response = await client.get(
+        "/api/v1/tests",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    items = data["items"]
+    assert len(items) == 2
+    counts = {item["title"]: item["question_count"] for item in items}
+    assert counts["Test 1"] == 1
+    assert counts["Test 2"] == 2
 
 
 @pytest.mark.anyio
