@@ -28,6 +28,7 @@ export interface Lesson {
   id: string;
   title: string;
   r7_uri: string;
+  content: string | null;
   module_id: string;
   order_index: number;
   author_id: string;
@@ -38,6 +39,7 @@ export interface Lesson {
 export interface Heuristic {
   id: string;
   content: string;
+  pending_content: string | null;
   module_id: string;
   author_id: string;
   manager_id: string;
