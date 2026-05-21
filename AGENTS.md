@@ -47,7 +47,7 @@ uv run uvicorn app.main:app --reload --port <PORT>
 
 - JWT (access + refresh). При выходе — JTI в Redis-blacklist с TTL = сроку жизни токена.
 - Все эндпоинты защищать `Depends(get_current_user)` + проверкой роли.
-- Валидацию blacklist выполнять через Redis в каждом микросервисе.
+- Валидацию blacklist выполнять через Redis в каждом микросервисе (включая `assessment-service`).
 - **Полная инструкция по интеграции JWT и RBAC в новые микросервисы:** [`docs/auth-integration.md`](docs/auth-integration.md).
 
 ## Контент
