@@ -1,18 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
 
 export function RegisterPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const tokenFromUrl = searchParams.get('token') || '';
-
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      navigate('/modules', { replace: true });
-    }
-  }, [navigate]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,13 +32,9 @@ export function RegisterPage() {
       formData.append('username', email);
       formData.append('password', password);
 
-      const loginRes = await authApi.post('/auth/login', formData, {
+      await authApi.post('/auth/login', formData, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
-
-      const { access_token, refresh_token } = loginRes.data;
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
 
       setSuccess('Регистрация прошла успешно! Вход выполнен...');
       setTimeout(() => {
