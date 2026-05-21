@@ -335,15 +335,15 @@ export function ModuleDetailPage() {
                           <ReactMarkdown>{lesson.content}</ReactMarkdown>
                         </div>
                       )}
-                      <div className="mt-2">
-                        <a
-                          href={lesson.r7_uri}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-indigo-600 hover:underline text-sm"
-                        >
-                          Открыть презентацию →
-                        </a>
+                      <div className="mt-3">
+                        <iframe
+                          src={lesson.r7_uri}
+                          title={`Презентация: ${lesson.title}`}
+                          width="100%"
+                          height="500"
+                          className="border border-gray-300 rounded"
+                          allowFullScreen
+                        />
                       </div>
                     </div>
                     {canEditLesson() && (
