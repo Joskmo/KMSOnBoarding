@@ -37,8 +37,7 @@ async def create(db: AsyncSession, *, obj_in: dict) -> Question:
     """Create a new question."""
     db_obj = Question(**obj_in)
     db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
+    await db.flush()
     return db_obj
 
 
@@ -48,15 +47,13 @@ async def update(db: AsyncSession, *, db_obj: Question, obj_in: dict) -> Questio
         if value is not None:
             setattr(db_obj, field, value)
     db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
+    await db.flush()
     return db_obj
 
 
 async def delete(db: AsyncSession, *, db_obj: Question) -> None:
     """Delete a question."""
     await db.delete(db_obj)
-    await db.commit()
 
 
 async def reorder(db: AsyncSession, *, db_obj: Question, new_index: int) -> Question:
@@ -93,7 +90,6 @@ async def reorder(db: AsyncSession, *, db_obj: Question, new_index: int) -> Ques
         await db.execute(
             update(Question).where(Question.id == q.id).values(order_index=1_000_000 + i)
         )
-    await db.commit()
 
     # Phase 2: final indices
     for i, q in enumerate(questions):
@@ -101,7 +97,5 @@ async def reorder(db: AsyncSession, *, db_obj: Question, new_index: int) -> Ques
         await db.execute(
             update(Question).where(Question.id == q.id).values(order_index=final_index)
         )
-    await db.commit()
 
-    await db.refresh(db_obj)
     return db_obj

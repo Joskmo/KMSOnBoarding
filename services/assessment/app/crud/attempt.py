@@ -49,8 +49,7 @@ async def create(db: AsyncSession, *, obj_in: dict) -> Attempt:
     """Create a new attempt."""
     db_obj = Attempt(**obj_in)
     db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
+    await db.flush()
     return db_obj
 
 
@@ -74,6 +73,5 @@ async def update(db: AsyncSession, *, db_obj: Attempt, obj_in: dict) -> Attempt:
         if value is not None:
             setattr(db_obj, field, value)
     db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
+    await db.flush()
     return db_obj

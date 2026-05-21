@@ -132,8 +132,14 @@ async def client() -> AsyncGenerator[AsyncClient]:
 async def db() -> AsyncGenerator[AsyncSession]:
     """Provide a direct database session for test helpers."""
     async with async_session() as session:
-        yield session
-        await session.close()
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 def create_token(

@@ -64,8 +64,7 @@ async def create(db: AsyncSession, *, obj_in: dict) -> Test:
     """Create a new test."""
     db_obj = Test(**obj_in)
     db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
+    await db.flush()
     return db_obj
 
 
@@ -75,12 +74,10 @@ async def update(db: AsyncSession, *, db_obj: Test, obj_in: dict) -> Test:
         if value is not None:
             setattr(db_obj, field, value)
     db.add(db_obj)
-    await db.commit()
-    await db.refresh(db_obj)
+    await db.flush()
     return db_obj
 
 
 async def delete(db: AsyncSession, *, db_obj: Test) -> None:
     """Delete a test."""
     await db.delete(db_obj)
-    await db.commit()
