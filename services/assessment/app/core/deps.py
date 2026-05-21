@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 
@@ -12,21 +12,32 @@ from app.core.redis import get_redis_pool
 from app.core.security import decode_token
 
 settings = get_settings()
-http_bearer = HTTPBearer(auto_error=True)
+http_bearer = HTTPBearer(auto_error=False)
+
+
+async def get_token_from_header_or_cookie(
+    auth: HTTPAuthorizationCredentials | None = Depends(http_bearer),
+    access_token: str | None = Cookie(default=None),
+) -> str | None:
+    """Return token from Authorization header or access_token cookie."""
+    return auth.credentials if auth else access_token
 
 
 async def get_current_user(
-    token: HTTPAuthorizationCredentials = Depends(http_bearer),
+    token: str | None = Depends(get_token_from_header_or_cookie),
     redis: Redis = Depends(get_redis_pool),
 ) -> dict:
-    """Validate token and return the current authenticated user."""
+    """Validate token from header or cookie and return the current authenticated user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = decode_token(token.credentials)
+    if not token:
+        raise credentials_exception
+
+    payload = decode_token(token)
     if payload is None:
         raise credentials_exception
 
