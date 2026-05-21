@@ -55,7 +55,7 @@ async def test_register_duplicate_email(client):
 
 @pytest.mark.asyncio
 async def test_login(client):
-    """Test successful login returns tokens."""
+    """Test successful login returns tokens and sets HttpOnly cookies."""
     await client.post(
         "/api/v1/auth/register",
         json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
@@ -67,6 +67,11 @@ async def test_login(client):
     data = response.json()
     assert "access_token" in data
     assert "refresh_token" in data
+    assert "set-cookie" in response.headers
+    cookies = response.headers["set-cookie"]
+    assert "access_token=" in cookies
+    assert "refresh_token=" in cookies
+    assert "HttpOnly" in cookies
 
 
 @pytest.mark.asyncio
@@ -101,16 +106,15 @@ async def test_get_me_unauthorized(client):
 
 @pytest.mark.asyncio
 async def test_get_me_authorized(client):
-    """Test accessing /me with valid token returns user data."""
+    """Test accessing /me via cookie auth returns user data."""
     await client.post(
         "/api/v1/auth/register",
         json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
     )
-    login_response = await client.post(
+    await client.post(
         "/api/v1/auth/login", data={"username": "test@example.com", "password": "password123"}
     )
-    token = login_response.json()["access_token"]
-    response = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get("/api/v1/users/me")
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "test@example.com"
@@ -464,3 +468,48 @@ async def test_delete_nonexistent_user(client):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_refresh_via_cookie(client):
+    """Test refresh endpoint reads refresh_token from cookie and updates cookies."""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
+    )
+    login_response = await client.post(
+        "/api/v1/auth/login", data={"username": "test@example.com", "password": "password123"}
+    )
+    assert "set-cookie" in login_response.headers
+
+    refresh_response = await client.post("/api/v1/auth/refresh")
+    assert refresh_response.status_code == 200
+    data = refresh_response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert "set-cookie" in refresh_response.headers
+    cookies = refresh_response.headers["set-cookie"]
+    assert "access_token=" in cookies
+    assert "refresh_token=" in cookies
+
+
+@pytest.mark.asyncio
+async def test_logout_clears_cookies(client):
+    """Test logout invalidates token and clears cookies."""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
+    )
+    await client.post(
+        "/api/v1/auth/login", data={"username": "test@example.com", "password": "password123"}
+    )
+
+    logout_response = await client.post("/api/v1/auth/logout")
+    assert logout_response.status_code == 200
+    assert "set-cookie" in logout_response.headers
+    cookies = logout_response.headers["set-cookie"]
+    assert "access_token=" in cookies
+    assert "refresh_token=" in cookies
+    # After logout, accessing protected endpoint without cookie should fail
+    me_response = await client.get("/api/v1/users/me")
+    assert me_response.status_code == 401
