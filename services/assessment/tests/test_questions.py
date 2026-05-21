@@ -151,13 +151,12 @@ async def test_list_questions_methodist(
 
 
 @pytest.mark.anyio
-async def test_list_questions_seminarist_no_correct(
+async def test_list_questions_seminarist_forbidden(
     client: AsyncClient,
     seminarist_token: str,
-    methodist1_token: str,
     db: AsyncSession,
 ) -> None:
-    """Seminarist sees questions without is_correct."""
+    """Seminarist cannot list questions directly."""
     test_id = await create_test(db, is_active=True)
     await create_question(db, test_id, text="Q1")
 
@@ -165,10 +164,7 @@ async def test_list_questions_seminarist_no_correct(
         f"/api/v1/tests/{test_id}/questions",
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 1
-    assert "is_correct" not in data[0]["options"][0]
+    assert response.status_code == 403
 
 
 @pytest.mark.anyio

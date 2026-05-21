@@ -212,13 +212,16 @@ async def create_question(
     return await question_crud.create(db, obj_in=question_data)
 
 
-@router.get("/{test_id}/questions")
+@router.get(
+    "/{test_id}/questions",
+    response_model=list[QuestionResponse],
+)
 async def list_questions(
     test_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["admin", "methodist"])),
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
-    """List questions for a test."""
+) -> list:
+    """List questions for a test (admin and methodist only)."""
     test = await test_crud.get(db, test_id)
     if not test:
         raise HTTPException(
@@ -226,41 +229,10 @@ async def list_questions(
             detail="Test not found",
         )
 
-    if not _can_access_test(current_user, test):
+    if not _can_modify_test(current_user, test):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
 
-    questions = await question_crud.get_by_test(db, test_id)
-
-    if current_user["role"] in ("seminarist", "candidate"):
-        # Strip is_correct from options
-        result = []
-        for q in questions:
-            q_dict = {
-                "id": q.id,
-                "test_id": q.test_id,
-                "order_index": q.order_index,
-                "text": q.text,
-                "qtype": q.qtype,
-                "options": [{"id": opt["id"], "text": opt["text"]} for opt in q.options],
-                "created_at": q.created_at,
-                "updated_at": q.updated_at,
-            }
-            result.append(q_dict)
-        return result
-
-    return [
-        {
-            "id": q.id,
-            "test_id": q.test_id,
-            "order_index": q.order_index,
-            "text": q.text,
-            "qtype": q.qtype,
-            "options": q.options,
-            "created_at": q.created_at,
-            "updated_at": q.updated_at,
-        }
-        for q in questions
-    ]
+    return await question_crud.get_by_test(db, test_id)
