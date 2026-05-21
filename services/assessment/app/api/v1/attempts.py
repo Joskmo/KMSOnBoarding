@@ -58,16 +58,10 @@ async def _get_or_fail_active_attempt(
         started = started.replace(tzinfo=UTC)
 
     if now - started > timedelta(minutes=ATTEMPT_TIMEOUT_MINUTES):
-        # Fail the timed-out attempt
-        await attempt_crud.update(
-            db,
-            db_obj=attempt,
-            obj_in={
-                "score": 0,
-                "is_passed": False,
-                "finished_at": now,
-            },
-        )
+        # Fail the timed-out attempt in-memory; caller will commit or rollback
+        attempt.score = 0
+        attempt.is_passed = False
+        attempt.finished_at = now
         return None
 
     return attempt
