@@ -116,6 +116,7 @@ async def start_attempt(
         }
 
     # Create new attempt
+    now = datetime.now(UTC)
     await attempt_crud.create(
         db,
         obj_in={
@@ -125,6 +126,8 @@ async def start_attempt(
             "answers": {},
             "score": 0,
             "is_passed": False,
+            "started_at": now,
+            "finished_at": now,
         },
     )
 

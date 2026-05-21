@@ -60,6 +60,7 @@ class QuestionUpdate(BaseModel):
     """Schema for updating a question."""
 
     text: str | None = None
+    qtype: str | None = None
     options: list[OptionItem] | None = None
 
     @model_validator(mode="after")
