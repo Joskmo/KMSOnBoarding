@@ -94,15 +94,34 @@ split-on-trailing-comma = true
     "S",     # Don't enforce security rules in tests
     "ARG001", # Unused arguments in test fixtures
 ]
+"**/tests/**/*.py" = [
+    "D",     # Don't require docstrings in tests
+    "S",     # Don't enforce security rules in tests
+    "ARG001", # Unused arguments in test fixtures
+    "ERA001", # Allow section divider comments
+    "E501",   # Allow long lines in tests
+    "N816",   # Allow mixedCase variables in test monkeypatching
+    "N802",   # Allow camelCase function names in test monkeypatching
+    "E402",   # Allow imports after monkeypatching in conftest
+    "E741",   # Allow ambiguous variable names in list comprehensions
+    "ARG002", # Allow unused arguments in test helpers
+]
 "**/alembic/**/*.py" = [
     "D",     # Don't require docstrings in migrations
     "ARG001", # Unused arguments in migration functions
+]
+"services/**/api/**/*.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+    "ARG001", # Unused arguments are standard for auth dependency injection
 ]
 "services/**/api/**/routers/*.py" = [
     "B008",  # Depends() in default arguments is standard FastAPI pattern
     "ARG001", # Unused arguments are standard for auth dependency injection
 ]
 "services/**/core/permissions.py" = [
+    "B008",  # Depends() in default arguments is standard FastAPI pattern
+]
+"services/**/core/deps.py" = [
     "B008",  # Depends() in default arguments is standard FastAPI pattern
 ]
 

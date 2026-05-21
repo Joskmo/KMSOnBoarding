@@ -31,7 +31,7 @@ async def create_invitation(
     if not can_create_invitation(creator_role, invitation_data.role_name):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot create invitation for this role",
+            detail="Нельзя создать инвайт для этой роли",
         )
 
     email = invitation_data.email
@@ -42,7 +42,7 @@ async def create_invitation(
         if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="User with this email already exists",
+                detail="Пользователь с таким email уже существует",
             )
 
     # If email is provided, check for an active (unused, not expired) invitation
@@ -73,7 +73,7 @@ async def create_invitation(
             # Methodist can only assign to themselves
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Methodist can only assign subordinates to themselves",
+                detail="Методист может назначать подчиненных только себе",
             )
     elif creator_role == UserRole.ADMIN:
         if manager_id is None:
@@ -86,12 +86,12 @@ async def create_invitation(
             if not manager:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Manager not found",
+                    detail="Менеджер не найден",
                 )
             if manager.role not in (UserRole.ADMIN, UserRole.METHODIST):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Manager must be an admin or methodist",
+                    detail="Менеджер должен быть админом или методистом",
                 )
 
     # Generate unique token
@@ -144,14 +144,14 @@ async def delete_invitation(
     if not invitation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invitation not found",
+            detail="Инвайт не найден",
         )
 
     creator_role = current_user.role
     if creator_role != UserRole.ADMIN and invitation.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot delete this invitation",
+            detail="Нельзя удалить этот инвайт",
         )
 
     await db.delete(invitation)
