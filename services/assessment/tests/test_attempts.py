@@ -680,3 +680,91 @@ async def test_get_attempt_unauthorized(client: AsyncClient) -> None:
     """Getting attempt without token returns 401."""
     response = await client.get(f"/api/v1/attempts/{uuid4()}")
     assert response.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_submit_empty_test(
+    client: AsyncClient,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Submitting answers for a test with no questions returns score 0."""
+    test_id = await create_test(db, title="Empty Test", is_active=True)
+
+    await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+
+    response = await client.post(
+        "/api/v1/attempts",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+        json={"test_id": str(test_id), "answers": {}},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["score"] == 0
+    assert data["is_passed"] is False
+
+
+@pytest.mark.anyio
+async def test_double_submit_returns_404(
+    client: AsyncClient,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Second submit for the same test returns 404 because no active attempt exists."""
+    test_id = await create_test(db, title="Double Submit", is_active=True)
+    q1 = await create_question(db, test_id)
+
+    await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+
+    # First submit
+    response = await client.post(
+        "/api/v1/attempts",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+        json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
+    )
+    assert response.status_code == 201
+
+    # Second submit — no active attempt remains
+    response = await client.post(
+        "/api/v1/attempts",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+        json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_get_attempt_methodist_owner(
+    client: AsyncClient,
+    methodist1_token: str,
+    seminarist_token: str,
+    db: AsyncSession,
+) -> None:
+    """Methodist who owns the test can view seminarist's attempt."""
+    test_id = await create_test(db, title="Owner View", is_active=True)
+    q1 = await create_question(db, test_id)
+
+    await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+    )
+    post_resp = await client.post(
+        "/api/v1/attempts",
+        headers={"Authorization": f"Bearer {seminarist_token}"},
+        json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
+    )
+    attempt_id = post_resp.json()["id"]
+
+    response = await client.get(
+        f"/api/v1/attempts/{attempt_id}",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "answers" in data
