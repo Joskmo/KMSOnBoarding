@@ -26,7 +26,7 @@ export function ModuleDetailPage() {
   const [lessonR7Uri, setLessonR7Uri] = useState('');
   const [lessonContent, setLessonContent] = useState('');
   const [lessonSaving, setLessonSaving] = useState(false);
-  const [r7Warning, setR7Warning] = useState('');
+  const [r7Status, setR7Status] = useState<{ message: string; type: 'success' | 'warning' } | null>(null);
 
   // Heuristic create form
   const [showHeuristicForm, setShowHeuristicForm] = useState(false);
@@ -142,12 +142,20 @@ export function ModuleDetailPage() {
   };
 
   const validateR7Uri = async (uri: string) => {
-    if (!uri) return;
+    if (!uri) {
+      setR7Status(null);
+      return;
+    }
     try {
-      await fetch(uri, { method: 'HEAD', mode: 'no-cors' });
-      setR7Warning('');
+      new URL(uri);
+      const response = await fetch(uri, { method: 'HEAD' });
+      if (response.ok) {
+        setR7Status({ message: 'Ссылка доступна', type: 'success' });
+      } else {
+        setR7Status({ message: `Сервер ответил со статусом ${response.status}. Ссылка может быть недоступна.`, type: 'warning' });
+      }
     } catch {
-      setR7Warning('Не удалось проверить ссылку. Убедитесь, что URI корректен.');
+      setR7Status({ message: 'Не удалось проверить ссылку. Убедитесь, что URI корректен.', type: 'warning' });
     }
   };
 
@@ -393,7 +401,11 @@ export function ModuleDetailPage() {
                           Проверить
                         </button>
                       </div>
-                      {r7Warning && <p className="text-yellow-600 text-xs mt-1">{r7Warning}</p>}
+                      {r7Status && (
+                        <p className={`text-xs mt-1 ${r7Status.type === 'success' ? 'text-green-600' : 'text-yellow-600'}`}>
+                          {r7Status.message}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Содержание (Markdown)</label>
@@ -470,7 +482,11 @@ export function ModuleDetailPage() {
                       Проверить
                     </button>
                   </div>
-                  {r7Warning && <p className="text-yellow-600 text-xs mt-1">{r7Warning}</p>}
+                  {r7Status && (
+                    <p className={`text-xs mt-1 ${r7Status.type === 'success' ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {r7Status.message}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Содержание (Markdown)</label>
@@ -490,7 +506,7 @@ export function ModuleDetailPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setShowLessonForm(false); setLessonTitle(''); setLessonR7Uri(''); setLessonContent(''); setR7Warning(''); }}
+                    onClick={() => { setShowLessonForm(false); setLessonTitle(''); setLessonR7Uri(''); setLessonContent(''); setR7Status(null); }}
                     className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
                   >
                     Отмена
