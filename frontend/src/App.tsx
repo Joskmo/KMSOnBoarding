@@ -8,6 +8,7 @@ import { ModulesPage } from './pages/ModulesPage';
 import { ModuleDetailPage } from './pages/ModuleDetailPage';
 import { ModuleCreatePage } from './pages/ModuleCreatePage';
 import { ModuleEditPage } from './pages/ModuleEditPage';
+import { LessonDetailPage } from './pages/LessonDetailPage';
 import { UsersPage } from './pages/UsersPage';
 import { UserEditPage } from './pages/UserEditPage';
 import { InvitationsPage } from './pages/InvitationsPage';
@@ -38,6 +39,7 @@ function App() {
             <Route path="modules/:id" element={<PrivateRoute><ModuleDetailPage /></PrivateRoute>} />
             <Route path="modules/new" element={<PrivateRoute><ModuleCreatePage /></PrivateRoute>} />
             <Route path="modules/:id/edit" element={<PrivateRoute><ModuleEditPage /></PrivateRoute>} />
+            <Route path="modules/:id/lessons/:lessonId" element={<PrivateRoute><LessonDetailPage /></PrivateRoute>} />
             <Route path="users" element={<PrivateRoute><RoleRoute allowedRoles={['admin', 'methodist']}><UsersPage /></RoleRoute></PrivateRoute>} />
             <Route path="users/:id/edit" element={<PrivateRoute><RoleRoute allowedRoles={['admin', 'methodist']}><UserEditPage /></RoleRoute></PrivateRoute>} />
             <Route path="invitations" element={<PrivateRoute><RoleRoute allowedRoles={['admin', 'methodist']}><InvitationsPage /></RoleRoute></PrivateRoute>} />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { contentApi } from '../api/client';
-import { updateLesson, deleteLesson, updateHeuristic, deleteHeuristic, approveHeuristicEdit, rejectHeuristicEdit } from '../api/content';
+import { updateHeuristic, deleteHeuristic, approveHeuristicEdit, rejectHeuristicEdit } from '../api/content';
 import { useAuth } from '../context/AuthContext';
 import { RoleGuard } from '../components/RoleGuard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -34,7 +34,6 @@ export function ModuleDetailPage() {
   const [heuristicSaving, setHeuristicSaving] = useState(false);
 
   // Inline edit state
-  const [lessonEdits, setLessonEdits] = useState<Record<string, { title: string; r7_uri: string; content: string }>>({});
   const [heuristicEdits, setHeuristicEdits] = useState<Record<string, { content: string }>>({});
 
   const canModerate = () => {
@@ -42,10 +41,6 @@ export function ModuleDetailPage() {
     if (hasRole(['admin'])) return true;
     if (hasRole(['methodist']) && module?.manager_id === user.id) return true;
     return false;
-  };
-
-  const canEditLesson = () => {
-    return hasRole(['admin', 'methodist']);
   };
 
   const canEditHeuristic = (h: Heuristic) => {
@@ -159,57 +154,6 @@ export function ModuleDetailPage() {
     }
   };
 
-  const startEditLesson = (lesson: Lesson) => {
-    setLessonEdits((prev) => ({
-      ...prev,
-      [lesson.id]: {
-        title: lesson.title,
-        r7_uri: lesson.r7_uri,
-        content: lesson.content || '',
-      },
-    }));
-  };
-
-  const cancelEditLesson = (lessonId: string) => {
-    setLessonEdits((prev) => {
-      const next = { ...prev };
-      delete next[lessonId];
-      return next;
-    });
-  };
-
-  const saveLesson = async (lessonId: string) => {
-    const draft = lessonEdits[lessonId];
-    if (!draft) return;
-    setError('');
-    try {
-      await updateLesson(lessonId, {
-        title: draft.title,
-        r7_uri: draft.r7_uri,
-        content: draft.content || null,
-      });
-      setLessonEdits((prev) => {
-        const next = { ...prev };
-        delete next[lessonId];
-        return next;
-      });
-      fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка сохранения урока');
-    }
-  };
-
-  const handleDeleteLesson = async (lessonId: string) => {
-    if (!window.confirm('Удалить урок?')) return;
-    setError('');
-    try {
-      await deleteLesson(lessonId);
-      fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка удаления урока');
-    }
-  };
-
   const startEditHeuristic = (h: Heuristic) => {
     setHeuristicEdits((prev) => ({
       ...prev,
@@ -316,129 +260,23 @@ export function ModuleDetailPage() {
 
       {/* Уроки */}
       <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Уроки ({lessons.length})</h2>
-        <div className="space-y-4">
-          {lessons.map((lesson) => {
-            const isEditing = lesson.id in lessonEdits;
-            const draft = lessonEdits[lesson.id];
-            return (
-              <div key={lesson.id} className="bg-white p-4 rounded shadow">
-                {!isEditing ? (
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">#{lesson.order_index}</span>
-                        <span className="font-medium text-lg">{lesson.title}</span>
-                      </div>
-                      {lesson.content && (
-                        <div className="mt-2 prose prose-sm max-w-none text-gray-700">
-                          <ReactMarkdown>{lesson.content}</ReactMarkdown>
-                        </div>
-                      )}
-                      <div className="mt-3">
-                        <iframe
-                          src={lesson.r7_uri}
-                          title={`Презентация: ${lesson.title}`}
-                          width="100%"
-                          height="500"
-                          className="border border-gray-300 rounded"
-                          allowFullScreen
-                        />
-                      </div>
-                    </div>
-                    {canEditLesson() && (
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() => startEditLesson(lesson)}
-                          className="text-sm text-indigo-600 hover:underline"
-                        >
-                          Редактировать
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLesson(lesson.id)}
-                          className="text-sm text-red-600 hover:underline"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Название</label>
-                      <input
-                        type="text"
-                        value={draft.title}
-                        onChange={(e) =>
-                          setLessonEdits((prev) => ({
-                            ...prev,
-                            [lesson.id]: { ...draft, title: e.target.value },
-                          }))
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Ссылка на презентацию (R7 URI)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={draft.r7_uri}
-                          onChange={(e) =>
-                            setLessonEdits((prev) => ({
-                              ...prev,
-                              [lesson.id]: { ...draft, r7_uri: e.target.value },
-                            }))
-                          }
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => validateR7Uri(draft.r7_uri)}
-                          className="mt-1 px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
-                        >
-                          Проверить
-                        </button>
-                      </div>
-                      {r7Status && (
-                        <p className={`text-xs mt-1 ${r7Status.type === 'success' ? 'text-green-600' : 'text-yellow-600'}`}>
-                          {r7Status.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Содержание (Markdown)</label>
-                      <MarkdownEditor
-                        value={draft.content}
-                        onChange={(value) =>
-                          setLessonEdits((prev) => ({
-                            ...prev,
-                            [lesson.id]: { ...draft, content: value },
-                          }))
-                        }
-                        placeholder="Введите markdown-содержимое..."
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => saveLesson(lesson.id)}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                      >
-                        Сохранить
-                      </button>
-                      <button
-                        onClick={() => cancelEditLesson(lesson.id)}
-                        className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-                      >
-                        Отмена
-                      </button>
-                    </div>
-                  </div>
-                )}
+        <h2 className="text-xl font-semibold mb-4">Материалы ({lessons.length})</h2>
+        <div className="space-y-2">
+          {lessons.map((lesson) => (
+            <Link
+              key={lesson.id}
+              to={`/modules/${id}/lessons/${lesson.id}`}
+              className="block bg-white p-4 rounded shadow hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-400 text-sm">#{lesson.order_index}</span>
+                  <span className="font-medium">{lesson.title}</span>
+                </div>
+                <span className="text-indigo-600 text-sm">Открыть →</span>
               </div>
-            );
-          })}
+            </Link>
+          ))}
         </div>
 
         <RoleGuard allowedRoles={['admin', 'methodist']}>
@@ -447,11 +285,11 @@ export function ModuleDetailPage() {
               onClick={() => setShowLessonForm(true)}
               className="mt-4 px-4 py-2 border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50"
             >
-              + Добавить урок
+              + Добавить материал
             </button>
           ) : (
             <form onSubmit={handleCreateLesson} className="mt-4 bg-white p-6 rounded-lg shadow border border-gray-200 max-w-2xl">
-              <h3 className="text-lg font-semibold mb-4">Новый урок</h3>
+              <h3 className="text-lg font-semibold mb-4">Новый материал</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Название *</label>
