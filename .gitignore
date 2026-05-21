@@ -14,3 +14,5 @@ notes
 .playwright-mcp/
 .opencode/
 AGENTS.md
+*.tsbuildinfo
+*.code-workspace
