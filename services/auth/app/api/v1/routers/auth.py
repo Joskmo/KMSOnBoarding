@@ -2,7 +2,12 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+    OAuth2PasswordBearer,
+    OAuth2PasswordRequestForm,
+)
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +30,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+http_bearer_optional = HTTPBearer(auto_error=False)
 
 
 async def get_redis() -> Redis:
@@ -231,18 +237,25 @@ async def login(
 
 @router.post("/logout")
 async def logout(
-    token: str = Depends(oauth2_scheme), redis: Redis = Depends(get_redis)
+    response: Response,
+    auth: HTTPAuthorizationCredentials | None = Depends(http_bearer_optional),
+    access_token_cookie: str | None = Cookie(default=None, alias="access_token"),
+    redis: Redis = Depends(get_redis),
 ) -> dict[str, str]:
-    """Invalidate the current access token by adding it to the blacklist."""
-    payload = decode_token(token)
-    if payload and payload.get("jti"):
-        jti = payload["jti"]
-        exp = payload.get("exp")
-        if exp:
-            ttl = int(exp) - int(datetime.now(UTC).timestamp())
-            if ttl > 0:
-                await redis.setex(f"blacklist:{jti}", ttl, "true")
+    """Invalidate the current access token and clear cookies."""
+    token = auth.credentials if auth else access_token_cookie
+    if token:
+        payload = decode_token(token)
+        if payload and payload.get("jti"):
+            jti = payload["jti"]
+            exp = payload.get("exp")
+            if exp:
+                ttl = int(exp) - int(datetime.now(UTC).timestamp())
+                if ttl > 0:
+                    await redis.setex(f"blacklist:{jti}", ttl, "true")
 
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
     return {"message": "Successfully logged out"}
 
 
