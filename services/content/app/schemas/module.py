@@ -1,6 +1,7 @@
 """Pydantic schemas for modules."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -45,3 +46,9 @@ class PaginatedModules(BaseModel):
     total: int
     page: int
     size: int
+
+
+class ModuleStatusUpdate(BaseModel):
+    """Schema for updating module status."""
+
+    status: Literal["draft", "published", "archived"]

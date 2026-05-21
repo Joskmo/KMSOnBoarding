@@ -67,43 +67,52 @@ async def reorder(db: AsyncSession, *, db_obj: Lesson, new_index: int) -> Lesson
     if new_index == old_index:
         return db_obj
 
-    if new_index > old_index:
-        # Moving down: shift items between old+1 and new up by 1
-        await db.execute(
-            select(Lesson).where(
-                Lesson.module_id == module_id,
-                Lesson.order_index > old_index,
-                Lesson.order_index <= new_index,
-            )
-        )
-        # Update via direct SQL for efficiency
-        from sqlalchemy import update
+    # Fetch all lessons for the module, update order indices in Python,
+    # and persist.  This avoids database-level unique constraint conflicts
+    # that can occur with bulk UPDATE statements (especially on SQLite).
+    lessons = await get_by_module(db, module_id)
 
-        await db.execute(
-            update(Lesson)
-            .where(
-                Lesson.module_id == module_id,
-                Lesson.order_index > old_index,
-                Lesson.order_index <= new_index,
-            )
-            .values(order_index=Lesson.order_index - 1)
-        )
+    # Sort by current order_index to guarantee stable ordering
+    lessons.sort(key=lambda lesson: lesson.order_index)
+
+    # Find and remove the lesson being moved
+    moved = None
+    for idx, lesson in enumerate(lessons):
+        if lesson.id == db_obj.id:
+            moved = lessons.pop(idx)
+            break
+
+    if moved is None:
+        raise ValueError("Lesson not found in module")
+
+    # Insert at the new position, appending if the index is beyond the
+    # current list so that arbitrary large gaps are preserved.
+    if new_index < 0:
+        new_index = 0
+    if new_index >= len(lessons):
+        lessons.append(moved)
     else:
-        # Moving up: shift items between new and old-1 down by 1
-        from sqlalchemy import update
+        lessons.insert(new_index, moved)
 
+    # Reassign order indices in two phases so that SQLite never sees an
+    # intermediate duplicate on the unique (module_id, order_index) constraint.
+    from sqlalchemy import update
+
+    # Phase 1: move every lesson to a guaranteed-unique temporary index.
+    for i, lesson in enumerate(lessons):
         await db.execute(
-            update(Lesson)
-            .where(
-                Lesson.module_id == module_id,
-                Lesson.order_index >= new_index,
-                Lesson.order_index < old_index,
-            )
-            .values(order_index=Lesson.order_index + 1)
+            update(Lesson).where(Lesson.id == lesson.id).values(order_index=1_000_000 + i)
         )
-
-    db_obj.order_index = new_index
-    db.add(db_obj)
     await db.commit()
+
+    # Phase 2: set the final indices.  The moved lesson keeps the requested
+    # new_index; the remaining lessons receive sequential indices.
+    for i, lesson in enumerate(lessons):
+        final_index = new_index if lesson.id == db_obj.id else i
+        await db.execute(
+            update(Lesson).where(Lesson.id == lesson.id).values(order_index=final_index)
+        )
+    await db.commit()
+
     await db.refresh(db_obj)
     return db_obj

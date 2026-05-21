@@ -14,6 +14,7 @@ from app.schemas.lesson import (
 from app.schemas.module import (
     ModuleCreate,
     ModuleResponse,
+    ModuleStatusUpdate,
     ModuleUpdate,
     PaginatedModules,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "LessonUpdate",
     "ModuleCreate",
     "ModuleResponse",
+    "ModuleStatusUpdate",
     "ModuleUpdate",
     "PaginatedModules",
 ]

@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
 
 from app.core.config import get_settings
@@ -12,11 +12,11 @@ from app.core.redis import get_redis_pool
 from app.core.security import decode_token
 
 settings = get_settings()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+http_bearer = HTTPBearer(auto_error=True)
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: HTTPAuthorizationCredentials = Depends(http_bearer),
     redis: Redis = Depends(get_redis_pool),
 ) -> dict:
     """Validate token and return the current authenticated user."""
@@ -26,7 +26,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = decode_token(token)
+    payload = decode_token(token.credentials)
     if payload is None:
         raise credentials_exception
 

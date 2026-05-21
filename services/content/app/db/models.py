@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -73,10 +73,7 @@ class Lesson(Base):
 
     module: Mapped["Module"] = relationship("Module", back_populates="lessons")
 
-    __table_args__ = (
-        # Unique order index within a module
-        {"sqlite_autoincrement": False},
-    )
+    __table_args__ = (UniqueConstraint("module_id", "order_index"),)
 
 
 class Heuristic(Base):

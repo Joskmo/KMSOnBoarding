@@ -16,6 +16,7 @@ from app.schemas import (
     LessonResponse,
     ModuleCreate,
     ModuleResponse,
+    ModuleStatusUpdate,
     ModuleUpdate,
     PaginatedModules,
 )
@@ -158,7 +159,7 @@ async def update_module(
 @router.patch("/{module_id}/status", response_model=ModuleResponse)
 async def update_module_status(
     module_id: UUID,
-    status_update: dict,
+    status_update: ModuleStatusUpdate,
     current_user: dict = Depends(require_role(["admin", "methodist"])),
     db: AsyncSession = Depends(get_db),
 ) -> Module:
@@ -176,12 +177,7 @@ async def update_module_status(
             detail="Insufficient permissions",
         )
 
-    new_status = status_update.get("status")
-    if not new_status:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Status is required",
-        )
+    new_status = status_update.status
 
     # Business rule: published -> draft is forbidden
     if module.status == "published" and new_status == "draft":
