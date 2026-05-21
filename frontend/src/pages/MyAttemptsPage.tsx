@@ -13,21 +13,20 @@ export function MyAttemptsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchAttempts = async () => {
+      setLoading(true);
+      try {
+        const res = await getMyAttempts({ page, size });
+        setAttempts(res.data.items);
+        setTotal(res.data.total);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Ошибка загрузки');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchAttempts();
-  }, [page]);
-
-  const fetchAttempts = async () => {
-    setLoading(true);
-    try {
-      const res = await getMyAttempts({ page, size });
-      setAttempts(res.data.items);
-      setTotal(res.data.total);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [page, size]);
 
   const totalPages = Math.ceil(total / size);
 

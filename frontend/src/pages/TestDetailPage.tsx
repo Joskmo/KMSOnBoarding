@@ -16,19 +16,18 @@ export function TestDetailPage() {
   const isManager = hasRole(['admin', 'methodist']);
 
   useEffect(() => {
+    const fetchTest = async () => {
+      try {
+        const res = await getTest(id!);
+        setTest(res.data);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Ошибка загрузки');
+      } finally {
+        setLoading(false);
+      }
+    };
     if (id) fetchTest();
   }, [id]);
-
-  const fetchTest = async () => {
-    try {
-      const res = await getTest(id!);
-      setTest(res.data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) return <LoadingSpinner />;
   if (error) return <div className="text-red-600 py-8">{error}</div>;

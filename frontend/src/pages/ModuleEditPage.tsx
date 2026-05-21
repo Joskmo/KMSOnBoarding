@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { contentApi } from '../api/client';
 import type { Module } from '../types';
@@ -12,11 +12,7 @@ export function ModuleEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (id) fetchModule();
-  }, [id]);
-
-  const fetchModule = async () => {
+  const fetchModule = useCallback(async () => {
     try {
       const res = await contentApi.get<Module>(`/modules/${id}`);
       setTitle(res.data.title);
@@ -26,7 +22,11 @@ export function ModuleEditPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) fetchModule();
+  }, [id, fetchModule]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

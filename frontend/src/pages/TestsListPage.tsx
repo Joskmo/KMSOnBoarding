@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { contentApi } from '../api/client';
@@ -22,23 +22,7 @@ export function TestsListPage() {
   const isManager = hasRole(['admin', 'methodist']);
   const isTestTaker = hasRole(['seminarist', 'candidate']);
 
-  useEffect(() => {
-    if (isManager) {
-      fetchModules();
-    }
-    fetchTests();
-  }, [page, moduleFilter, isManager]);
-
-  const fetchModules = async () => {
-    try {
-      const res = await contentApi.get('/modules?page=1&size=100');
-      setModules(res.data.items || []);
-    } catch (err: any) {
-      console.error('Failed to load modules', err);
-    }
-  };
-
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -52,7 +36,22 @@ export function TestsListPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, moduleFilter, size]);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        const res = await contentApi.get('/modules?page=1&size=100');
+        setModules(res.data.items || []);
+      } catch (err: any) {
+        console.error('Failed to load modules', err);
+      }
+    };
+    if (isManager) {
+      fetchModules();
+    }
+    fetchTests();
+  }, [page, moduleFilter, isManager, fetchTests]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Удалить тест?')) return;

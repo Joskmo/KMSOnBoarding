@@ -23,7 +23,7 @@ export function TestCreatePage() {
     try {
       const res = await contentApi.get('/modules?page=1&size=100');
       setModules(res.data.items || []);
-    } catch (err: any) {
+    } catch {
       setError('Не удалось загрузить список модулей');
     }
   };

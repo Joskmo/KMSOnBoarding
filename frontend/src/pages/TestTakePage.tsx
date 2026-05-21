@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { startAttempt, submitAttempt } from '../api/assessment';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import type { AttemptStart, QuestionForAttempt } from '../types';
+import type { AttemptStart } from '../types';
 
 export function TestTakePage() {
   const { id } = useParams<{ id: string }>();
@@ -16,23 +16,22 @@ export function TestTakePage() {
   const [result, setResult] = useState<{ score: number; is_passed: boolean } | null>(null);
 
   useEffect(() => {
+    const startTest = async () => {
+      setLoading(true);
+      try {
+        const res = await startAttempt(id!);
+        setAttemptData(res.data);
+        const init: Record<string, string[]> = {};
+        res.data.questions.forEach((q) => { init[q.id] = []; });
+        setAnswers(init);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Ошибка запуска теста');
+      } finally {
+        setLoading(false);
+      }
+    };
     if (id) startTest();
   }, [id]);
-
-  const startTest = async () => {
-    setLoading(true);
-    try {
-      const res = await startAttempt(id!);
-      setAttemptData(res.data);
-      const init: Record<string, string[]> = {};
-      res.data.questions.forEach((q) => { init[q.id] = []; });
-      setAnswers(init);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка запуска теста');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSelect = (questionId: string, optionId: string, qtype: 'single' | 'multiple') => {
     setAnswers((prev) => {

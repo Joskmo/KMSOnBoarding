@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getTest, updateTest, getQuestions, createQuestion, updateQuestion,
@@ -29,11 +29,7 @@ export function TestEditPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [showEditor, setShowEditor] = useState(false);
 
-  useEffect(() => {
-    if (id) fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [testRes, qRes] = await Promise.all([
@@ -52,7 +48,11 @@ export function TestEditPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) fetchData();
+  }, [id, fetchData]);
 
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();

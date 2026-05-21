@@ -14,26 +14,25 @@ export function ModuleDetailPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [modRes, lessonsRes, heurRes] = await Promise.all([
+          contentApi.get(`/modules/${id}`),
+          contentApi.get(`/modules/${id}/lessons`),
+          contentApi.get(`/modules/${id}/heuristics`),
+        ]);
+        setModule(modRes.data);
+        setLessons(lessonsRes.data);
+        setHeuristics(heurRes.data);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Ошибка загрузки');
+      } finally {
+        setLoading(false);
+      }
+    };
     if (id) fetchData();
   }, [id]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [modRes, lessonsRes, heurRes] = await Promise.all([
-        contentApi.get(`/modules/${id}`),
-        contentApi.get(`/modules/${id}/lessons`),
-        contentApi.get(`/modules/${id}/heuristics`),
-      ]);
-      setModule(modRes.data);
-      setLessons(lessonsRes.data);
-      setHeuristics(heurRes.data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!window.confirm('Удалить модуль?')) return;

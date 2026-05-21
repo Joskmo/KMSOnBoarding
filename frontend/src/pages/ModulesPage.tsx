@@ -14,24 +14,23 @@ export function ModulesPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const fetchModules = async () => {
+      setLoading(true);
+      try {
+        const params: any = { page, size };
+        if (statusFilter) params.status = statusFilter;
+        
+        const res = await contentApi.get('/modules', { params });
+        setModules(res.data.items);
+        setTotal(res.data.total);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Ошибка загрузки модулей');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchModules();
-  }, [page, statusFilter]);
-
-  const fetchModules = async () => {
-    setLoading(true);
-    try {
-      const params: any = { page, size };
-      if (statusFilter) params.status = statusFilter;
-      
-      const res = await contentApi.get('/modules', { params });
-      setModules(res.data.items);
-      setTotal(res.data.total);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка загрузки модулей');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [page, statusFilter, size]);
 
   const totalPages = Math.ceil(total / size);
 

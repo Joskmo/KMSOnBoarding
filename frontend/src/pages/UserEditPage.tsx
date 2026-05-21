@@ -25,35 +25,35 @@ export function UserEditPage() {
   const [resetPasswordResult, setResetPasswordResult] = useState('');
 
   useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await authApi.get<User>(`/users/${id}`);
+        setTargetUser(res.data);
+        setFullName(res.data.full_name || '');
+        setEmail(res.data.email || '');
+        const currentManagerId = res.data.manager_id || '';
+        setManagerId(currentManagerId === id ? '' : currentManagerId);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Ошибка загрузки пользователя');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchUsers = async () => {
+      try {
+        const res = await authApi.get('/users');
+        setUsers(res.data);
+      } catch {
+        // ignore
+      }
+    };
+
     if (id) {
       fetchUser();
       fetchUsers();
     }
   }, [id]);
-
-  const fetchUser = async () => {
-    try {
-      const res = await authApi.get<User>(`/users/${id}`);
-      setTargetUser(res.data);
-      setFullName(res.data.full_name || '');
-      setEmail(res.data.email || '');
-      const currentManagerId = res.data.manager_id || '';
-      setManagerId(currentManagerId === id ? '' : currentManagerId);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка загрузки пользователя');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const res = await authApi.get('/users');
-      setUsers(res.data);
-    } catch {
-      // ignore
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
