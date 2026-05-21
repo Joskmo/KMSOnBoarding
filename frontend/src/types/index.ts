@@ -6,7 +6,7 @@ export interface Token {
 
 export interface User {
   id: string;
-  email: string;
+  email: string | null;
   role: 'admin' | 'methodist' | 'seminarist' | 'candidate';
   manager_id: string | null;
   full_name: string | null;

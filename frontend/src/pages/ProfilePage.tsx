@@ -76,10 +76,10 @@ export function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  const passwordsMatch = password && confirmPassword && password === confirmPassword;
+  const passwordsMatch = !!(password && confirmPassword && password === confirmPassword);
   const passwordValid = password.length >= 8;
   const passwordsValid = passwordsMatch && passwordValid;
-  const passwordsMismatch = password && confirmPassword && password !== confirmPassword;
+  const passwordsMismatch = !!(password && confirmPassword && password !== confirmPassword);
 
   const handleNameSave = async () => {
     if (!fullName.trim()) return;
