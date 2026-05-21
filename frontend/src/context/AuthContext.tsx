@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import { authApi } from '../api/client';
 import type { Token, User } from '../types';
 
@@ -24,30 +25,58 @@ function decodeToken(token: string): any {
   }
 }
 
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return null;
+
+  try {
+    const res = await axios.post('/api/v1/auth/refresh', null, {
+      params: { refresh_token: refreshToken },
+    });
+    const { access_token, refresh_token } = res.data;
+    localStorage.setItem('access_token', access_token);
+    localStorage.setItem('refresh_token', refresh_token);
+    return access_token;
+  } catch {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      const payload = decodeToken(token);
-      if (payload && payload.exp * 1000 > Date.now()) {
-        authApi.get('/users/me')
-          .then((res) => setUser(res.data))
-          .catch(() => {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-          })
-          .finally(() => setIsLoading(false));
+    const initAuth = async () => {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        const payload = decodeToken(token);
+        const isExpired = !payload || payload.exp * 1000 <= Date.now();
+
+        if (isExpired) {
+          const newToken = await tryRefreshToken();
+          if (!newToken) {
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        try {
+          const res = await authApi.get('/users/me');
+          setUser(res.data);
+        } catch {
+          // Interceptor will handle redirect if refresh also failed
+        } finally {
+          setIsLoading(false);
+        }
       } else {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
         setIsLoading(false);
       }
-    } else {
-      setIsLoading(false);
-    }
+    };
+
+    initAuth();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

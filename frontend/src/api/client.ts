@@ -28,6 +28,26 @@ export const assessmentApi = axios.create({
   },
 });
 
+// Separate instance for refresh to avoid interceptor recursion
+const refreshApi = axios.create({
+  baseURL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function subscribeTokenRefresh(callback: (token: string) => void) {
+  refreshSubscribers.push(callback);
+}
+
+function onTokenRefreshed(newToken: string) {
+  refreshSubscribers.forEach((callback) => callback(newToken));
+  refreshSubscribers = [];
+}
+
 // Interceptor for adding token
 const addToken = (config: any) => {
   const token = localStorage.getItem('access_token');
@@ -41,19 +61,79 @@ authApi.interceptors.request.use(addToken);
 contentApi.interceptors.request.use(addToken);
 assessmentApi.interceptors.request.use(addToken);
 
-// Interceptor for handling 401
-const handleAuthError = (error: any) => {
-  if (error.response?.status === 401) {
-    const isAuthPage = ['/login', '/register'].includes(window.location.pathname);
-    if (!isAuthPage) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      window.location.href = '/login';
-    }
+// Helper to refresh token
+async function doRefresh() {
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) {
+    throw new Error('No refresh token');
   }
-  return Promise.reject(error);
-};
+  const res = await refreshApi.post('/auth/refresh', null, {
+    params: { refresh_token: refreshToken },
+  });
+  const { access_token, refresh_token } = res.data;
+  localStorage.setItem('access_token', access_token);
+  localStorage.setItem('refresh_token', refresh_token);
+  return access_token;
+}
 
-authApi.interceptors.response.use((res) => res, handleAuthError);
-contentApi.interceptors.response.use((res) => res, handleAuthError);
-assessmentApi.interceptors.response.use((res) => res, handleAuthError);
+// Interceptor for handling 401
+function createAuthErrorInterceptor(api: any) {
+  return async (error: any) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't try to refresh if this is the refresh request itself
+      if (originalRequest.url?.includes('/auth/refresh')) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        // Wait for refresh to complete, then retry
+        return new Promise((resolve) => {
+          subscribeTokenRefresh((newToken: string) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const newToken = await doRefresh();
+        onTokenRefreshed(newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        const isAuthPage = ['/login', '/register'].includes(window.location.pathname);
+        if (!isAuthPage) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  };
+}
+
+authApi.interceptors.response.use(
+  (res) => res,
+  createAuthErrorInterceptor(authApi)
+);
+contentApi.interceptors.response.use(
+  (res) => res,
+  createAuthErrorInterceptor(contentApi)
+);
+assessmentApi.interceptors.response.use(
+  (res) => res,
+  createAuthErrorInterceptor(assessmentApi)
+);
