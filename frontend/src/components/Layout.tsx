@@ -23,6 +23,9 @@ export function Layout() {
                 <Link to="/modules" className="text-gray-600 hover:text-indigo-600">
                   Модули
                 </Link>
+                <Link to="/tests" className="text-gray-600 hover:text-indigo-600">
+                  Тесты
+                </Link>
                 {canManageUsers && (
                   <>
                     <Link to="/users" className="text-gray-600 hover:text-indigo-600">
