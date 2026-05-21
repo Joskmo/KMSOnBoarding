@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from redis.asyncio import Redis
 from sqlalchemy import func, select
@@ -170,11 +170,12 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
 
 @router.post("/login", response_model=Token)
 async def login(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> Token:
-    """Authenticate user and return access and refresh tokens."""
+    """Authenticate user and return access and refresh tokens as HttpOnly cookies."""
     # Rate limiting: 5 attempts per minute per IP
     client_ip = "127.0.0.1"  # In production, get from request headers
     rate_key = f"rate_limit:login:{client_ip}"
@@ -205,6 +206,25 @@ async def login(
         role=user.role,
     )
     refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
