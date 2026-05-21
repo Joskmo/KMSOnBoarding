@@ -349,7 +349,7 @@ async def test_update_heuristic_author_unapproved(client, seminarist_token, db):
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_approved_conflict(client, seminarist_token, db):
+async def test_update_heuristic_approved_pending(client, seminarist_token, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -361,7 +361,10 @@ async def test_update_heuristic_approved_conflict(client, seminarist_token, db):
         json={"content": "New"},
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
-    assert response.status_code == 409
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "Old"
+    assert data["pending_content"] == "New"
 
 
 @pytest.mark.asyncio
@@ -391,7 +394,7 @@ async def test_update_heuristic_forbidden(client, methodist1_token, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
-    h_id = await create_heuristic(db, module_id, content="H")
+    h_id = await create_heuristic(db, module_id, content="H", manager_id=METHODIST_2_ID)
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}",
         json={"content": "New"},
@@ -540,7 +543,7 @@ async def test_delete_heuristic_author_unapproved(client, seminarist_token, db):
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_author_approved_conflict(client, seminarist_token, db):
+async def test_delete_heuristic_author_approved(client, seminarist_token, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -551,7 +554,7 @@ async def test_delete_heuristic_author_approved_conflict(client, seminarist_toke
         f"/api/v1/heuristics/{h_id}",
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
-    assert response.status_code == 409
+    assert response.status_code == 204
 
 
 @pytest.mark.asyncio
@@ -580,6 +583,150 @@ async def test_delete_heuristic_not_found(client, admin_token):
     fake_id = str(uuid4())
     response = await client.delete(
         f"/api/v1/heuristics/{fake_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 404
+
+
+# ------------------------------------------------------------------
+# POST /heuristics/{id}/approve-edit
+# ------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_approve_edit_admin(client, admin_token, db):
+    module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
+    h_id = await create_heuristic(
+        db, module_id, content="Old", pending_content="New", is_approved=True
+    )
+    response = await client.post(
+        f"/api/v1/heuristics/{h_id}/approve-edit",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "New"
+    assert data["pending_content"] is None
+
+
+@pytest.mark.asyncio
+async def test_approve_edit_methodist_own(client, methodist1_token, db):
+    module_id = await create_module(
+        db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
+    )
+    h_id = await create_heuristic(
+        db, module_id, content="Old", pending_content="New", is_approved=True
+    )
+    response = await client.post(
+        f"/api/v1/heuristics/{h_id}/approve-edit",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "New"
+    assert data["pending_content"] is None
+
+
+@pytest.mark.asyncio
+async def test_approve_edit_methodist_other_forbidden(client, methodist1_token, db):
+    module_id = await create_module(
+        db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
+    )
+    h_id = await create_heuristic(
+        db, module_id, content="Old", pending_content="New", is_approved=True, manager_id=METHODIST_2_ID
+    )
+    response = await client.post(
+        f"/api/v1/heuristics/{h_id}/approve-edit",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_approve_edit_unauthorized(client, db):
+    module_id = await create_module(db)
+    h_id = await create_heuristic(db, module_id)
+    response = await client.post(f"/api/v1/heuristics/{h_id}/approve-edit")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_approve_edit_not_found(client, admin_token):
+    fake_id = str(uuid4())
+    response = await client.post(
+        f"/api/v1/heuristics/{fake_id}/approve-edit",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 404
+
+
+# ------------------------------------------------------------------
+# POST /heuristics/{id}/reject-edit
+# ------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reject_edit_admin(client, admin_token, db):
+    module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
+    h_id = await create_heuristic(
+        db, module_id, content="Old", pending_content="New", is_approved=True
+    )
+    response = await client.post(
+        f"/api/v1/heuristics/{h_id}/reject-edit",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "Old"
+    assert data["pending_content"] is None
+
+
+@pytest.mark.asyncio
+async def test_reject_edit_methodist_own(client, methodist1_token, db):
+    module_id = await create_module(
+        db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
+    )
+    h_id = await create_heuristic(
+        db, module_id, content="Old", pending_content="New", is_approved=True
+    )
+    response = await client.post(
+        f"/api/v1/heuristics/{h_id}/reject-edit",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content"] == "Old"
+    assert data["pending_content"] is None
+
+
+@pytest.mark.asyncio
+async def test_reject_edit_methodist_other_forbidden(client, methodist1_token, db):
+    module_id = await create_module(
+        db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
+    )
+    h_id = await create_heuristic(
+        db, module_id, content="Old", pending_content="New", is_approved=True, manager_id=METHODIST_2_ID
+    )
+    response = await client.post(
+        f"/api/v1/heuristics/{h_id}/reject-edit",
+        headers={"Authorization": f"Bearer {methodist1_token}"},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_reject_edit_unauthorized(client, db):
+    module_id = await create_module(db)
+    h_id = await create_heuristic(db, module_id)
+    response = await client.post(f"/api/v1/heuristics/{h_id}/reject-edit")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_reject_edit_not_found(client, admin_token):
+    fake_id = str(uuid4())
+    response = await client.post(
+        f"/api/v1/heuristics/{fake_id}/reject-edit",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 404

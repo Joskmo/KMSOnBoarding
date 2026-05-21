@@ -62,6 +62,26 @@ async def approve(db: AsyncSession, *, db_obj: Heuristic) -> Heuristic:
     return db_obj
 
 
+async def approve_edit(db: AsyncSession, *, db_obj: Heuristic) -> Heuristic:
+    """Approve pending edits and apply them to content."""
+    if db_obj.pending_content is not None:
+        db_obj.content = db_obj.pending_content
+        db_obj.pending_content = None
+    db.add(db_obj)
+    await db.commit()
+    await db.refresh(db_obj)
+    return db_obj
+
+
+async def reject_edit(db: AsyncSession, *, db_obj: Heuristic) -> Heuristic:
+    """Reject pending edits by clearing pending_content."""
+    db_obj.pending_content = None
+    db.add(db_obj)
+    await db.commit()
+    await db.refresh(db_obj)
+    return db_obj
+
+
 async def delete(db: AsyncSession, *, db_obj: Heuristic) -> None:
     """Delete a heuristic."""
     await db.delete(db_obj)

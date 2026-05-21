@@ -236,6 +236,7 @@ async def create_heuristic(
     author_id: UUID | None = None,
     manager_id: UUID | None = None,
     is_approved: bool = False,
+    pending_content: str | None = None,
 ) -> UUID:
     """Create a heuristic directly in the database."""
     heuristic = await heuristic_crud.create(
@@ -246,6 +247,7 @@ async def create_heuristic(
             "author_id": author_id or SEMINARIST_ID,
             "manager_id": manager_id or METHODIST_1_ID,
             "is_approved": is_approved,
+            "pending_content": pending_content,
         },
     )
     return heuristic.id
