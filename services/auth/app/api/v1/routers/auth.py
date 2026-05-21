@@ -5,7 +5,6 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
-    OAuth2PasswordBearer,
     OAuth2PasswordRequestForm,
 )
 from redis.asyncio import Redis
@@ -29,7 +28,6 @@ from app.schemas import RegisterWithInvitation, Token, UserResponse
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 http_bearer_optional = HTTPBearer(auto_error=False)
 
 
@@ -50,17 +48,28 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
     return user
 
 
+async def get_token_from_header_or_cookie(
+    auth: HTTPAuthorizationCredentials | None = Depends(http_bearer_optional),
+    access_token: str | None = Cookie(default=None),
+) -> str | None:
+    """Return token from Authorization header or access_token cookie."""
+    return auth.credentials if auth else access_token
+
+
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: str | None = Depends(get_token_from_header_or_cookie),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> User:
-    """Validate token and return the current authenticated user."""
+    """Validate token from header or cookie and return the current authenticated user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if not token:
+        raise credentials_exception
 
     payload = decode_token(token)
     if payload is None:
