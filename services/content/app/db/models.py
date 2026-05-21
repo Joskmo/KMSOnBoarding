@@ -60,6 +60,7 @@ class Lesson(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     r7_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
     author_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False

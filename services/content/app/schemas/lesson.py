@@ -11,6 +11,7 @@ class LessonBase(BaseModel):
 
     title: str
     r7_uri: str
+    content: str | None = None
 
 
 class LessonCreate(LessonBase):
@@ -24,6 +25,7 @@ class LessonUpdate(BaseModel):
 
     title: str | None = None
     r7_uri: str | None = None
+    content: str | None = None
 
 
 class LessonReorder(BaseModel):
@@ -41,5 +43,6 @@ class LessonResponse(LessonBase):
     module_id: UUID
     order_index: int
     author_id: UUID
+    content: str | None
     created_at: datetime
     updated_at: datetime
