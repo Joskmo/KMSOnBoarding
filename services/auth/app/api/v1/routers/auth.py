@@ -340,3 +340,63 @@ async def refresh_token(
     )
 
     return Token(access_token=access_token, refresh_token=new_refresh_token)
+
+
+@router.get("/verify")
+async def verify_token(
+    token: str | None = Depends(get_token_from_header_or_cookie),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+) -> Response:
+    """Verify access token and return user identity headers for API Gateway."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token required",
+        )
+
+    payload = decode_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token type",
+        )
+
+    jti = payload.get("jti")
+    if jti:
+        is_blacklisted = await redis.get(f"blacklist:{jti}")
+        if is_blacklisted:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token revoked",
+            )
+
+    user_id = payload.get("sub")
+    role = payload.get("role")
+    if not user_id or not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    response = Response(status_code=status.HTTP_200_OK)
+    response.headers["X-User-ID"] = str(user_id)
+    response.headers["X-User-Role"] = role
+    manager_id = payload.get("manager_id")
+    if manager_id:
+        response.headers["X-Manager-ID"] = str(manager_id)
+    return response
