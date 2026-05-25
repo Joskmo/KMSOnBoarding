@@ -633,7 +633,12 @@ async def test_approve_edit_methodist_other_forbidden(client, methodist1_headers
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     h_id = await create_heuristic(
-        db, module_id, content="Old", pending_content="New", is_approved=True, manager_id=METHODIST_2_ID
+        db,
+        module_id,
+        content="Old",
+        pending_content="New",
+        is_approved=True,
+        manager_id=METHODIST_2_ID,
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/approve-edit",
@@ -705,7 +710,12 @@ async def test_reject_edit_methodist_other_forbidden(client, methodist1_headers,
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     h_id = await create_heuristic(
-        db, module_id, content="Old", pending_content="New", is_approved=True, manager_id=METHODIST_2_ID
+        db,
+        module_id,
+        content="Old",
+        pending_content="New",
+        is_approved=True,
+        manager_id=METHODIST_2_ID,
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/reject-edit",

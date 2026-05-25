@@ -195,9 +195,11 @@ async def delete_heuristic(
     role = current_user["role"]
     can_delete = False
 
-    if role == "admin" or (
-        role == "methodist" and str(heuristic.manager_id) == str(current_user["id"])
-    ) or str(heuristic.author_id) == str(current_user["id"]):
+    if (
+        role == "admin"
+        or (role == "methodist" and str(heuristic.manager_id) == str(current_user["id"]))
+        or str(heuristic.author_id) == str(current_user["id"])
+    ):
         can_delete = True
 
     if not can_delete:

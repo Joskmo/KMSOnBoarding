@@ -210,7 +210,9 @@ async def test_get_module_methodist_own(client, methodist1_headers, db):
 
 
 @pytest.mark.asyncio
-async def test_get_module_methodist_other_forbidden(client, methodist1_headers, methodist2_headers, db):
+async def test_get_module_methodist_other_forbidden(
+    client, methodist1_headers, methodist2_headers, db
+):
     module_id = await create_module(db, author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID)
     response = await client.get(
         f"/api/v1/modules/{module_id}",

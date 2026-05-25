@@ -52,6 +52,7 @@ async def update_me(
     for field, value in update_data.items():
         if field == "password" and value:
             from app.core.security import get_password_hash
+
             current_user.hashed_password = get_password_hash(value)
         else:
             setattr(current_user, field, value)
@@ -171,8 +172,10 @@ async def reset_user_password(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
     import secrets
+
     new_password = secrets.token_urlsafe(12)
     from app.core.security import get_password_hash
+
     user.hashed_password = get_password_hash(new_password)
     await db.commit()
 
@@ -193,9 +196,7 @@ async def delete_user(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
@@ -204,9 +205,7 @@ async def delete_user(
         )
 
     # Check for active subordinates
-    subordinates_result = await db.execute(
-        select(User).where(User.manager_id == user_id)
-    )
+    subordinates_result = await db.execute(select(User).where(User.manager_id == user_id))
     if subordinates_result.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -220,16 +219,10 @@ async def delete_user(
     await db.execute(delete(Invitation).where(Invitation.manager_id == user_id))
 
     # Clear used_by references to avoid FK constraint violations
-    await db.execute(
-        update(Invitation)
-        .where(Invitation.used_by == user_id)
-        .values(used_by=None)
-    )
+    await db.execute(update(Invitation).where(Invitation.used_by == user_id).values(used_by=None))
 
     # Clear invited_by references to avoid FK constraint violations
-    await db.execute(
-        update(User).where(User.invited_by == user_id).values(invited_by=None)
-    )
+    await db.execute(update(User).where(User.invited_by == user_id).values(invited_by=None))
 
     await db.delete(user)
     await db.commit()
