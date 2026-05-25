@@ -16,12 +16,12 @@ from tests.conftest import METHODIST_2_ID, create_question, create_test
 @pytest.mark.anyio
 async def test_create_test_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Methodist can create a test."""
     response = await client.post(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={
             "module_id": str(uuid4()),
             "title": "Regression Test",
@@ -49,12 +49,12 @@ async def test_create_test_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_create_test_forbidden(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
 ) -> None:
     """Seminarist cannot create a test."""
     response = await client.post(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"module_id": str(uuid4()), "title": "Test"},
     )
     assert response.status_code == 403
@@ -63,12 +63,12 @@ async def test_create_test_forbidden(
 @pytest.mark.anyio
 async def test_create_test_invalid_body(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Invalid body returns 422."""
     response = await client.post(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"title": "Test"},  # missing module_id
     )
     assert response.status_code == 422
@@ -82,7 +82,7 @@ async def test_create_test_invalid_body(
 @pytest.mark.anyio
 async def test_list_tests_methodist(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist sees only own tests."""
@@ -90,7 +90,7 @@ async def test_list_tests_methodist(
 
     response = await client.get(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -101,8 +101,8 @@ async def test_list_tests_methodist(
 @pytest.mark.anyio
 async def test_list_tests_seminarist(
     client: AsyncClient,
-    seminarist_token: str,
-    methodist1_token: str,
+    seminarist_headers: dict,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Seminarist sees only active tests of their manager."""
@@ -111,7 +111,7 @@ async def test_list_tests_seminarist(
 
     response = await client.get(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -129,8 +129,8 @@ async def test_list_tests_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_list_tests_admin(
     client: AsyncClient,
-    admin_token: str,
-    methodist1_token: str,
+    admin_headers: dict,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Admin sees all tests."""
@@ -139,7 +139,7 @@ async def test_list_tests_admin(
 
     response = await client.get(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -149,7 +149,7 @@ async def test_list_tests_admin(
 @pytest.mark.anyio
 async def test_list_tests_candidate_other_manager(
     client: AsyncClient,
-    candidate_token: str,
+    candidate_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Candidate does not see tests of another manager."""
@@ -157,7 +157,7 @@ async def test_list_tests_candidate_other_manager(
 
     response = await client.get(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {candidate_token}"},
+        headers=candidate_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -172,7 +172,7 @@ async def test_list_tests_candidate_other_manager(
 @pytest.mark.anyio
 async def test_get_test_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can get their own test."""
@@ -180,7 +180,7 @@ async def test_get_test_success(
 
     response = await client.get(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -190,7 +190,7 @@ async def test_get_test_success(
 @pytest.mark.anyio
 async def test_get_test_question_count(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """GET test returns correct question_count when questions exist."""
@@ -200,7 +200,7 @@ async def test_get_test_question_count(
 
     response = await client.get(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -210,7 +210,7 @@ async def test_get_test_question_count(
 @pytest.mark.anyio
 async def test_list_tests_question_count(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """LIST tests returns correct question_count for each test."""
@@ -222,7 +222,7 @@ async def test_list_tests_question_count(
 
     response = await client.get(
         "/api/v1/tests",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -236,12 +236,12 @@ async def test_list_tests_question_count(
 @pytest.mark.anyio
 async def test_get_test_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Getting non-existent test returns 404."""
     response = await client.get(
         f"/api/v1/tests/{uuid4()}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 404
 
@@ -249,8 +249,8 @@ async def test_get_test_not_found(
 @pytest.mark.anyio
 async def test_get_test_forbidden(
     client: AsyncClient,
-    methodist1_token: str,
-    methodist2_token: str,
+    methodist1_headers: dict,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot get another methodist's test."""
@@ -258,7 +258,7 @@ async def test_get_test_forbidden(
 
     response = await client.get(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
     )
     assert response.status_code == 403
 
@@ -278,7 +278,7 @@ async def test_get_test_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_update_test_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can update their own test."""
@@ -286,7 +286,7 @@ async def test_update_test_success(
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"title": "New Title"},
     )
     assert response.status_code == 200
@@ -297,12 +297,12 @@ async def test_update_test_success(
 @pytest.mark.anyio
 async def test_update_test_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Updating non-existent test returns 404."""
     response = await client.patch(
         f"/api/v1/tests/{uuid4()}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"title": "New Title"},
     )
     assert response.status_code == 404
@@ -311,7 +311,7 @@ async def test_update_test_not_found(
 @pytest.mark.anyio
 async def test_update_test_forbidden(
     client: AsyncClient,
-    methodist2_token: str,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot update another methodist's test."""
@@ -319,7 +319,7 @@ async def test_update_test_forbidden(
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
         json={"title": "New Title"},
     )
     assert response.status_code == 403
@@ -338,7 +338,7 @@ async def test_update_test_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_update_test_invalid_body(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Invalid body returns 422."""
@@ -346,7 +346,7 @@ async def test_update_test_invalid_body(
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"pass_score": "not_a_number"},
     )
     assert response.status_code == 422
@@ -355,7 +355,7 @@ async def test_update_test_invalid_body(
 @pytest.mark.anyio
 async def test_update_test_pass_score_boundary(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Pass score boundaries 0 and 100 are accepted."""
@@ -363,7 +363,7 @@ async def test_update_test_pass_score_boundary(
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"pass_score": 0},
     )
     assert response.status_code == 200
@@ -371,7 +371,7 @@ async def test_update_test_pass_score_boundary(
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"pass_score": 100},
     )
     assert response.status_code == 200
@@ -381,7 +381,7 @@ async def test_update_test_pass_score_boundary(
 @pytest.mark.anyio
 async def test_update_test_pass_score_out_of_range(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Pass score outside 0-100 returns 422."""
@@ -389,14 +389,14 @@ async def test_update_test_pass_score_out_of_range(
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"pass_score": 101},
     )
     assert response.status_code == 422
 
     response = await client.patch(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"pass_score": -1},
     )
     assert response.status_code == 422
@@ -410,7 +410,7 @@ async def test_update_test_pass_score_out_of_range(
 @pytest.mark.anyio
 async def test_delete_test_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can delete their own test."""
@@ -418,14 +418,14 @@ async def test_delete_test_success(
 
     response = await client.delete(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 204
 
     # Verify deletion
     response = await client.get(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 404
 
@@ -433,12 +433,12 @@ async def test_delete_test_success(
 @pytest.mark.anyio
 async def test_delete_test_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Deleting non-existent test returns 404."""
     response = await client.delete(
         f"/api/v1/tests/{uuid4()}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 404
 
@@ -446,7 +446,7 @@ async def test_delete_test_not_found(
 @pytest.mark.anyio
 async def test_delete_test_forbidden(
     client: AsyncClient,
-    methodist2_token: str,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot delete another methodist's test."""
@@ -454,7 +454,7 @@ async def test_delete_test_forbidden(
 
     response = await client.delete(
         f"/api/v1/tests/{test_id}",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
     )
     assert response.status_code == 403
 

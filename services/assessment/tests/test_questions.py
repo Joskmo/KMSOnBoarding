@@ -16,7 +16,7 @@ from tests.conftest import create_question, create_test
 @pytest.mark.anyio
 async def test_create_question_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can create a question in their test."""
@@ -24,7 +24,7 @@ async def test_create_question_success(
 
     response = await client.post(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={
             "text": "What is overfitting?",
             "qtype": "single",
@@ -60,7 +60,7 @@ async def test_create_question_unauthorized(
 @pytest.mark.anyio
 async def test_create_question_forbidden(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Seminarist cannot create a question."""
@@ -68,7 +68,7 @@ async def test_create_question_forbidden(
 
     response = await client.post(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "text": "Q?",
             "options": [
@@ -83,12 +83,12 @@ async def test_create_question_forbidden(
 @pytest.mark.anyio
 async def test_create_question_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Creating question for non-existent test returns 404."""
     response = await client.post(
         f"/api/v1/tests/{uuid4()}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={
             "text": "Q?",
             "options": [
@@ -103,7 +103,7 @@ async def test_create_question_not_found(
 @pytest.mark.anyio
 async def test_create_question_invalid_body(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Invalid question body returns 422."""
@@ -111,7 +111,7 @@ async def test_create_question_invalid_body(
 
     response = await client.post(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={
             "text": "Q?",
             "qtype": "single",
@@ -132,7 +132,7 @@ async def test_create_question_invalid_body(
 @pytest.mark.anyio
 async def test_list_questions_methodist(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist sees all questions with is_correct."""
@@ -142,7 +142,7 @@ async def test_list_questions_methodist(
 
     response = await client.get(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -153,7 +153,7 @@ async def test_list_questions_methodist(
 @pytest.mark.anyio
 async def test_list_questions_seminarist_forbidden(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Seminarist cannot list questions directly."""
@@ -162,7 +162,7 @@ async def test_list_questions_seminarist_forbidden(
 
     response = await client.get(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 403
 
@@ -182,12 +182,12 @@ async def test_list_questions_unauthorized(
 @pytest.mark.anyio
 async def test_list_questions_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Listing questions for non-existent test returns 404."""
     response = await client.get(
         f"/api/v1/tests/{uuid4()}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 404
 
@@ -200,7 +200,7 @@ async def test_list_questions_not_found(
 @pytest.mark.anyio
 async def test_update_question_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can update their question."""
@@ -209,7 +209,7 @@ async def test_update_question_success(
 
     response = await client.patch(
         f"/api/v1/questions/{question_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"text": "New Text"},
     )
     assert response.status_code == 200
@@ -220,12 +220,12 @@ async def test_update_question_success(
 @pytest.mark.anyio
 async def test_update_question_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Updating non-existent question returns 404."""
     response = await client.patch(
         f"/api/v1/questions/{uuid4()}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"text": "New Text"},
     )
     assert response.status_code == 404
@@ -234,7 +234,7 @@ async def test_update_question_not_found(
 @pytest.mark.anyio
 async def test_update_question_forbidden(
     client: AsyncClient,
-    methodist2_token: str,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot update another methodist's question."""
@@ -243,7 +243,7 @@ async def test_update_question_forbidden(
 
     response = await client.patch(
         f"/api/v1/questions/{question_id}",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
         json={"text": "New Text"},
     )
     assert response.status_code == 403
@@ -262,7 +262,7 @@ async def test_update_question_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_update_question_invalid_body(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Invalid body returns 422."""
@@ -271,7 +271,7 @@ async def test_update_question_invalid_body(
 
     response = await client.patch(
         f"/api/v1/questions/{question_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={
             "options": [
                 {"id": "a", "text": "A", "is_correct": True},
@@ -290,7 +290,7 @@ async def test_update_question_invalid_body(
 @pytest.mark.anyio
 async def test_reorder_question_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can reorder questions."""
@@ -302,7 +302,7 @@ async def test_reorder_question_success(
     # Move q1 to position 2
     response = await client.patch(
         f"/api/v1/questions/{q1}/reorder",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"order_index": 2},
     )
     assert response.status_code == 200
@@ -312,7 +312,7 @@ async def test_reorder_question_success(
     # Verify order changed
     response = await client.get(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     questions = response.json()
@@ -323,12 +323,12 @@ async def test_reorder_question_success(
 @pytest.mark.anyio
 async def test_reorder_question_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Reordering non-existent question returns 404."""
     response = await client.patch(
         f"/api/v1/questions/{uuid4()}/reorder",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"order_index": 1},
     )
     assert response.status_code == 404
@@ -337,7 +337,7 @@ async def test_reorder_question_not_found(
 @pytest.mark.anyio
 async def test_reorder_question_forbidden(
     client: AsyncClient,
-    methodist2_token: str,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot reorder another methodist's questions."""
@@ -346,7 +346,7 @@ async def test_reorder_question_forbidden(
 
     response = await client.patch(
         f"/api/v1/questions/{question_id}/reorder",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
         json={"order_index": 1},
     )
     assert response.status_code == 403
@@ -370,7 +370,7 @@ async def test_reorder_question_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_delete_question_success(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can delete their question."""
@@ -379,14 +379,14 @@ async def test_delete_question_success(
 
     response = await client.delete(
         f"/api/v1/questions/{question_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 204
 
     # Verify deletion
     response = await client.get(
         f"/api/v1/tests/{test_id}/questions",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     data = response.json()
     assert len(data) == 0
@@ -395,12 +395,12 @@ async def test_delete_question_success(
 @pytest.mark.anyio
 async def test_delete_question_not_found(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
 ) -> None:
     """Deleting non-existent question returns 404."""
     response = await client.delete(
         f"/api/v1/questions/{uuid4()}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 404
 
@@ -408,7 +408,7 @@ async def test_delete_question_not_found(
 @pytest.mark.anyio
 async def test_delete_question_forbidden(
     client: AsyncClient,
-    methodist2_token: str,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot delete another methodist's question."""
@@ -417,7 +417,7 @@ async def test_delete_question_forbidden(
 
     response = await client.delete(
         f"/api/v1/questions/{question_id}",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
     )
     assert response.status_code == 403
 
