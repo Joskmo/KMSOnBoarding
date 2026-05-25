@@ -91,9 +91,7 @@ async def update_heuristic(
     is_author = str(heuristic.author_id) == str(current_user["id"])
     is_own_manager = str(heuristic.manager_id) == str(current_user["id"])
 
-    if role == "admin":
-        pass
-    elif role == "methodist" and is_own_manager:
+    if role == "admin" or (role == "methodist" and is_own_manager):
         pass
     elif is_author:
         if heuristic.is_approved:
@@ -199,9 +197,7 @@ async def delete_heuristic(
 
     if role == "admin" or (
         role == "methodist" and str(heuristic.manager_id) == str(current_user["id"])
-    ):
-        can_delete = True
-    elif str(heuristic.author_id) == str(current_user["id"]):
+    ) or str(heuristic.author_id) == str(current_user["id"]):
         can_delete = True
 
     if not can_delete:

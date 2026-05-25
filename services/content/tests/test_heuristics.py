@@ -20,12 +20,12 @@ from tests.conftest import (
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_admin_any_module(client, admin_token, db):
+async def test_create_heuristic_admin_any_module(client, admin_headers, db):
     module_id = await create_module(db, status="draft", author_id=ADMIN_ID, manager_id=ADMIN_ID)
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "FAQ entry"},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 201
     data = response.json()
@@ -34,14 +34,14 @@ async def test_create_heuristic_admin_any_module(client, admin_token, db):
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_seminarist_published(client, seminarist_token, db):
+async def test_create_heuristic_seminarist_published(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "Seminarist FAQ"},
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 201
     data = response.json()
@@ -51,40 +51,40 @@ async def test_create_heuristic_seminarist_published(client, seminarist_token, d
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_candidate_published(client, candidate_token, db):
+async def test_create_heuristic_candidate_published(client, candidate_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "Candidate FAQ"},
-        headers={"Authorization": f"Bearer {candidate_token}"},
+        headers=candidate_headers,
     )
     assert response.status_code == 201
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_seminarist_unpublished_forbidden(client, seminarist_token, db):
+async def test_create_heuristic_seminarist_unpublished_forbidden(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="draft", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "FAQ"},
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_seminarist_wrong_manager(client, seminarist_token, db):
+async def test_create_heuristic_seminarist_wrong_manager(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "FAQ"},
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 403
 
@@ -100,23 +100,23 @@ async def test_create_heuristic_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_module_not_found(client, admin_token):
+async def test_create_heuristic_module_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.post(
         f"/api/v1/modules/{fake_id}/heuristics",
         json={"content": "FAQ"},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_create_heuristic_invalid(client, admin_token, db):
+async def test_create_heuristic_invalid(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 422
 
@@ -127,14 +127,14 @@ async def test_create_heuristic_invalid(client, admin_token, db):
 
 
 @pytest.mark.asyncio
-async def test_list_heuristics_happy(client, admin_token, db):
+async def test_list_heuristics_happy(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     await create_heuristic(db, module_id, content="H1", is_approved=True)
     await create_heuristic(db, module_id, content="H2", is_approved=False)
 
     response = await client.get(
         f"/api/v1/modules/{module_id}/heuristics",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -142,14 +142,14 @@ async def test_list_heuristics_happy(client, admin_token, db):
 
 
 @pytest.mark.asyncio
-async def test_list_heuristics_approved_only(client, admin_token, db):
+async def test_list_heuristics_approved_only(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     await create_heuristic(db, module_id, content="H1", is_approved=True)
     await create_heuristic(db, module_id, content="H2", is_approved=False)
 
     response = await client.get(
         f"/api/v1/modules/{module_id}/heuristics?approved_only=true",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -165,27 +165,27 @@ async def test_list_heuristics_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_list_heuristics_module_not_found(client, admin_token):
+async def test_list_heuristics_module_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.get(
         f"/api/v1/modules/{fake_id}/heuristics",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_list_heuristics_forbidden(client, methodist1_token, db):
+async def test_list_heuristics_forbidden(client, methodist1_headers, db):
     module_id = await create_module(db, author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID)
     response = await client.get(
         f"/api/v1/modules/{module_id}/heuristics",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_list_heuristics_seminarist_own_unapproved_visible(client, seminarist_token, db):
+async def test_list_heuristics_seminarist_own_unapproved_visible(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -199,7 +199,7 @@ async def test_list_heuristics_seminarist_own_unapproved_visible(client, seminar
 
     response = await client.get(
         f"/api/v1/modules/{module_id}/heuristics",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -215,58 +215,58 @@ async def test_list_heuristics_seminarist_own_unapproved_visible(client, seminar
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_admin(client, admin_token, db):
+async def test_get_heuristic_admin(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(db, module_id, content="H", is_approved=False)
     response = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     assert response.json()["content"] == "H"
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_methodist_own(client, methodist1_token, db):
+async def test_get_heuristic_methodist_own(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     h_id = await create_heuristic(db, module_id, content="H")
     response = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_methodist_other_forbidden(client, methodist1_token, db):
+async def test_get_heuristic_methodist_other_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     h_id = await create_heuristic(db, module_id, content="H", manager_id=METHODIST_2_ID)
     response = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_seminarist_approved(client, seminarist_token, db):
+async def test_get_heuristic_seminarist_approved(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     h_id = await create_heuristic(db, module_id, content="H", is_approved=True)
     response = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_seminarist_own_unapproved(client, seminarist_token, db):
+async def test_get_heuristic_seminarist_own_unapproved(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -275,13 +275,13 @@ async def test_get_heuristic_seminarist_own_unapproved(client, seminarist_token,
     )
     response = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_seminarist_other_unapproved_forbidden(client, seminarist_token, db):
+async def test_get_heuristic_seminarist_other_unapproved_forbidden(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -290,7 +290,7 @@ async def test_get_heuristic_seminarist_other_unapproved_forbidden(client, semin
     )
     response = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 403
 
@@ -304,11 +304,11 @@ async def test_get_heuristic_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_get_heuristic_not_found(client, admin_token):
+async def test_get_heuristic_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.get(
         f"/api/v1/heuristics/{fake_id}",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
@@ -319,20 +319,20 @@ async def test_get_heuristic_not_found(client, admin_token):
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_admin(client, admin_token, db):
+async def test_update_heuristic_admin(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(db, module_id, content="Old")
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}",
         json={"content": "New"},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     assert response.json()["content"] == "New"
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_author_unapproved(client, seminarist_token, db):
+async def test_update_heuristic_author_unapproved(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -342,14 +342,14 @@ async def test_update_heuristic_author_unapproved(client, seminarist_token, db):
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}",
         json={"content": "New"},
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     assert response.json()["content"] == "New"
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_approved_pending(client, seminarist_token, db):
+async def test_update_heuristic_approved_pending(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -359,7 +359,7 @@ async def test_update_heuristic_approved_pending(client, seminarist_token, db):
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}",
         json={"content": "New"},
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -379,18 +379,18 @@ async def test_update_heuristic_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_not_found(client, admin_token):
+async def test_update_heuristic_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.patch(
         f"/api/v1/heuristics/{fake_id}",
         json={"content": "New"},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_forbidden(client, methodist1_token, db):
+async def test_update_heuristic_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -398,19 +398,19 @@ async def test_update_heuristic_forbidden(client, methodist1_token, db):
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}",
         json={"content": "New"},
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_update_heuristic_invalid(client, admin_token, db):
+async def test_update_heuristic_invalid(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(db, module_id)
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}",
         json={"content": 123},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 422
 
@@ -421,33 +421,33 @@ async def test_update_heuristic_invalid(client, admin_token, db):
 
 
 @pytest.mark.asyncio
-async def test_approve_heuristic_admin(client, admin_token, db):
+async def test_approve_heuristic_admin(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(db, module_id, content="H", is_approved=False)
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}/approve",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     assert response.json()["is_approved"] is True
 
 
 @pytest.mark.asyncio
-async def test_approve_heuristic_methodist_own(client, methodist1_token, db):
+async def test_approve_heuristic_methodist_own(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     h_id = await create_heuristic(db, module_id, content="H", is_approved=False)
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}/approve",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     assert response.json()["is_approved"] is True
 
 
 @pytest.mark.asyncio
-async def test_approve_heuristic_methodist_other_forbidden(client, methodist1_token, db):
+async def test_approve_heuristic_methodist_other_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -456,7 +456,7 @@ async def test_approve_heuristic_methodist_other_forbidden(client, methodist1_to
     )
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}/approve",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
@@ -470,24 +470,24 @@ async def test_approve_heuristic_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_approve_heuristic_not_found(client, admin_token):
+async def test_approve_heuristic_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.patch(
         f"/api/v1/heuristics/{fake_id}/approve",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_approve_heuristic_forbidden_role(client, seminarist_token, db):
+async def test_approve_heuristic_forbidden_role(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     h_id = await create_heuristic(db, module_id)
     response = await client.patch(
         f"/api/v1/heuristics/{h_id}/approve",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 403
 
@@ -498,37 +498,37 @@ async def test_approve_heuristic_forbidden_role(client, seminarist_token, db):
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_admin(client, admin_token, db):
+async def test_delete_heuristic_admin(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(db, module_id)
     response = await client.delete(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 204
 
     get_resp = await client.get(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert get_resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_methodist_own(client, methodist1_token, db):
+async def test_delete_heuristic_methodist_own(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     h_id = await create_heuristic(db, module_id)
     response = await client.delete(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 204
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_author_unapproved(client, seminarist_token, db):
+async def test_delete_heuristic_author_unapproved(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -537,13 +537,13 @@ async def test_delete_heuristic_author_unapproved(client, seminarist_token, db):
     )
     response = await client.delete(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 204
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_author_approved(client, seminarist_token, db):
+async def test_delete_heuristic_author_approved(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -552,20 +552,20 @@ async def test_delete_heuristic_author_approved(client, seminarist_token, db):
     )
     response = await client.delete(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 204
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_methodist_other_forbidden(client, methodist1_token, db):
+async def test_delete_heuristic_methodist_other_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     h_id = await create_heuristic(db, module_id, manager_id=METHODIST_2_ID)
     response = await client.delete(
         f"/api/v1/heuristics/{h_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
@@ -579,11 +579,11 @@ async def test_delete_heuristic_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_delete_heuristic_not_found(client, admin_token):
+async def test_delete_heuristic_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.delete(
         f"/api/v1/heuristics/{fake_id}",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
@@ -594,14 +594,14 @@ async def test_delete_heuristic_not_found(client, admin_token):
 
 
 @pytest.mark.asyncio
-async def test_approve_edit_admin(client, admin_token, db):
+async def test_approve_edit_admin(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(
         db, module_id, content="Old", pending_content="New", is_approved=True
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/approve-edit",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -610,7 +610,7 @@ async def test_approve_edit_admin(client, admin_token, db):
 
 
 @pytest.mark.asyncio
-async def test_approve_edit_methodist_own(client, methodist1_token, db):
+async def test_approve_edit_methodist_own(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -619,7 +619,7 @@ async def test_approve_edit_methodist_own(client, methodist1_token, db):
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/approve-edit",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -628,7 +628,7 @@ async def test_approve_edit_methodist_own(client, methodist1_token, db):
 
 
 @pytest.mark.asyncio
-async def test_approve_edit_methodist_other_forbidden(client, methodist1_token, db):
+async def test_approve_edit_methodist_other_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -637,7 +637,7 @@ async def test_approve_edit_methodist_other_forbidden(client, methodist1_token, 
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/approve-edit",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
@@ -651,11 +651,11 @@ async def test_approve_edit_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_approve_edit_not_found(client, admin_token):
+async def test_approve_edit_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.post(
         f"/api/v1/heuristics/{fake_id}/approve-edit",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
 
@@ -666,14 +666,14 @@ async def test_approve_edit_not_found(client, admin_token):
 
 
 @pytest.mark.asyncio
-async def test_reject_edit_admin(client, admin_token, db):
+async def test_reject_edit_admin(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     h_id = await create_heuristic(
         db, module_id, content="Old", pending_content="New", is_approved=True
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/reject-edit",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -682,7 +682,7 @@ async def test_reject_edit_admin(client, admin_token, db):
 
 
 @pytest.mark.asyncio
-async def test_reject_edit_methodist_own(client, methodist1_token, db):
+async def test_reject_edit_methodist_own(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
@@ -691,7 +691,7 @@ async def test_reject_edit_methodist_own(client, methodist1_token, db):
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/reject-edit",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -700,7 +700,7 @@ async def test_reject_edit_methodist_own(client, methodist1_token, db):
 
 
 @pytest.mark.asyncio
-async def test_reject_edit_methodist_other_forbidden(client, methodist1_token, db):
+async def test_reject_edit_methodist_other_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -709,7 +709,7 @@ async def test_reject_edit_methodist_other_forbidden(client, methodist1_token, d
     )
     response = await client.post(
         f"/api/v1/heuristics/{h_id}/reject-edit",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
@@ -723,10 +723,10 @@ async def test_reject_edit_unauthorized(client, db):
 
 
 @pytest.mark.asyncio
-async def test_reject_edit_not_found(client, admin_token):
+async def test_reject_edit_not_found(client, admin_headers):
     fake_id = str(uuid4())
     response = await client.post(
         f"/api/v1/heuristics/{fake_id}/reject-edit",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=admin_headers,
     )
     assert response.status_code == 404
