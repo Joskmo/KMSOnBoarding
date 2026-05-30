@@ -106,6 +106,17 @@ export function ModuleDetailPage() {
     }
   };
 
+  const handleRestoreToDraft = async () => {
+    if (!window.confirm('Вернуть модуль в черновики?')) return;
+    setError('');
+    try {
+      await contentApi.patch(`/modules/${id}/status`, { status: 'draft' });
+      navigate('/modules');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка восстановления');
+    }
+  };
+
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -273,6 +284,14 @@ export function ModuleDetailPage() {
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 Опубликовать
+              </button>
+            )}
+            {module.status === 'archived' && (
+              <button
+                onClick={handleRestoreToDraft}
+                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              >
+                В черновик
               </button>
             )}
             {(module.status === 'draft' || module.status === 'published') && (
