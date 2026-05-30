@@ -286,7 +286,7 @@ export function ModuleDetailPage() {
                 Опубликовать
               </button>
             )}
-            {module.status === 'archived' && (
+            {(module.status === 'archived' || module.status === 'published') && (
               <button
                 onClick={handleRestoreToDraft}
                 className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
@@ -302,6 +302,12 @@ export function ModuleDetailPage() {
                 В архив
               </button>
             )}
+            <Link
+              to={`/tests/create?module_id=${id}`}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              + Создать тест
+            </Link>
             <Link
               to={`/modules/${id}/edit`}
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"

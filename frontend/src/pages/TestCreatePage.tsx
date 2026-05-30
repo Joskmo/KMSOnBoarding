@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { contentApi } from '../api/client';
 import { createTest } from '../api/assessment';
 import type { Module } from '../types';
 
 export function TestCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedModuleId = searchParams.get('module_id') || '';
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [moduleId, setModuleId] = useState('');
+  const [moduleId, setModuleId] = useState(preselectedModuleId);
   const [passScore, setPassScore] = useState(70);
   const [modules, setModules] = useState<Module[]>([]);
   const [saving, setSaving] = useState(false);
