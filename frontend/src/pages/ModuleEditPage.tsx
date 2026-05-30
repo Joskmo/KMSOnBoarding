@@ -94,14 +94,6 @@ export function ModuleEditPage() {
           
           <button
             type="button"
-            onClick={() => handleStatusChange('published')}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Опубликовать
-          </button>
-          
-          <button
-            type="button"
             onClick={() => handleStatusChange('archived')}
             className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
           >

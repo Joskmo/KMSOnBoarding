@@ -84,6 +84,17 @@ export function ModuleDetailPage() {
     }
   };
 
+  const handlePublishModule = async () => {
+    if (!window.confirm('Опубликовать модуль?')) return;
+    setError('');
+    try {
+      await contentApi.patch(`/modules/${id}/status`, { status: 'published' });
+      fetchData();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка публикации');
+    }
+  };
+
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -245,6 +256,14 @@ export function ModuleDetailPage() {
 
         <div className="flex gap-2">
           <RoleGuard allowedRoles={['admin', 'methodist']}>
+            {module.status === 'draft' && (
+              <button
+                onClick={handlePublishModule}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Опубликовать
+              </button>
+            )}
             <Link
               to={`/modules/${id}/edit`}
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
