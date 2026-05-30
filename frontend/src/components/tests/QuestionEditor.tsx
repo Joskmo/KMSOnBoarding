@@ -52,8 +52,8 @@ export function QuestionEditor({ question, onSave, onCancel }: QuestionEditorPro
     if (options.length < 2) errs.push('Минимум 2 варианта ответа');
     if (options.some((o) => !o.text.trim())) errs.push('Все варианты должны содержать текст');
     const correctCount = options.filter((o) => o.is_correct).length;
-    if (qtype === 'single' && correctCount !== 1) errs.push('Одиночный выбор: ровно 1 правильный ответ');
-    if (qtype === 'multiple' && correctCount < 1) errs.push('Множественный выбор: минимум 1 правильный ответ');
+    if (qtype === 'single' && correctCount !== 1) errs.push('Укажите ровно 1 правильный вариант');
+    if (qtype === 'multiple' && correctCount < 1) errs.push('Укажите минимум 1 правильный вариант');
     setErrors(errs);
     return errs.length === 0;
   };
