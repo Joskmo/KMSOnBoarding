@@ -14,7 +14,7 @@ export function ModulesPage() {
     const fetchModules = async () => {
       setLoading(true);
       try {
-        const res = await contentApi.get('/modules', { params: { page: 1, size: 1000 } });
+        const res = await contentApi.get('/modules', { params: { page: 1, size: 100 } });
         setModules(res.data.items);
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Ошибка загрузки модулей');
