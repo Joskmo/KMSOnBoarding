@@ -21,7 +21,7 @@ else
 fi
 
 # Substitute env vars in nginx template
-envsubst '${API_GATEWAY_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+envsubst '${API_GATEWAY_URL} ${DOMAIN}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Background: watch for cert renewal trigger and reload nginx
 (
