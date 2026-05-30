@@ -93,8 +93,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_auth_data:/var/lib/postgresql
-    ports:
-      - "5433:5432"
     networks:
       - kms_internal
 
@@ -106,8 +104,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_content_data:/var/lib/postgresql
-    ports:
-      - "5434:5432"
     networks:
       - kms_internal
 
@@ -119,15 +115,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_assessment_data:/var/lib/postgresql
-    ports:
-      - "5435:5432"
     networks:
       - kms_internal
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     networks:
       - kms_internal
 
