@@ -56,7 +56,7 @@ export function LessonDetailPage() {
   const startEdit = () => {
     if (!lesson) return;
     setDraftTitle(lesson.title);
-    setDraftR7Uri(lesson.r7_uri);
+    setDraftR7Uri(lesson.r7_uri || '');
     setDraftContent(lesson.content || '');
     setIsEditing(true);
     setR7Status(null);
@@ -72,11 +72,16 @@ export function LessonDetailPage() {
     setSaving(true);
     setError('');
     try {
-      await updateLesson(lessonId, {
+      const updateData: Record<string, unknown> = {
         title: draftTitle,
-        r7_uri: draftR7Uri,
         content: draftContent || null,
-      });
+      };
+      if (draftR7Uri.trim()) {
+        updateData.r7_uri = draftR7Uri.trim();
+      } else {
+        updateData.r7_uri = null;
+      }
+      await updateLesson(lessonId, updateData as Partial<Lesson>);
       setIsEditing(false);
       fetchData();
     } catch (err: any) {
@@ -159,16 +164,18 @@ export function LessonDetailPage() {
             </div>
           )}
 
-          <div className="mt-4">
-            <iframe
-              src={lesson.r7_uri}
-              title={`Презентация: ${lesson.title}`}
-              width="100%"
-              height="600"
-              className="border border-gray-300 rounded"
-              allowFullScreen
-            />
-          </div>
+          {lesson.r7_uri && (
+            <div className="mt-4">
+              <iframe
+                src={lesson.r7_uri}
+                title={`Презентация: ${lesson.title}`}
+                width="100%"
+                height="600"
+                className="border border-gray-300 rounded"
+                allowFullScreen
+              />
+            </div>
+          )}
         </>
       ) : (
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200 max-w-3xl">

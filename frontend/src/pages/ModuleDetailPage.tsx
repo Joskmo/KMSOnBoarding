@@ -90,11 +90,14 @@ export function ModuleDetailPage() {
     setLessonSaving(true);
     setError('');
     try {
-      await contentApi.post(`/modules/${id}/lessons`, {
+      const payload: Record<string, unknown> = {
         title: lessonTitle,
-        r7_uri: lessonR7Uri,
         content: lessonContent || undefined,
-      });
+      };
+      if (lessonR7Uri.trim()) {
+        payload.r7_uri = lessonR7Uri.trim();
+      }
+      await contentApi.post(`/modules/${id}/lessons`, payload);
       setLessonTitle('');
       setLessonR7Uri('');
       setLessonContent('');
@@ -302,7 +305,7 @@ export function ModuleDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Ссылка на презентацию (R7 URI) *</label>
+                  <label className="block text-sm font-medium text-gray-700">Ссылка на презентацию (R7 URI)</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -310,7 +313,6 @@ export function ModuleDetailPage() {
                       onChange={(e) => setLessonR7Uri(e.target.value)}
                       placeholder="https://..."
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      required
                     />
                     <button
                       type="button"

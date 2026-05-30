@@ -27,7 +27,7 @@ export interface Module {
 export interface Lesson {
   id: string;
   title: string;
-  r7_uri: string;
+  r7_uri: string | null;
   content: string | null;
   module_id: string;
   order_index: number;
