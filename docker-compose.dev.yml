@@ -1,0 +1,117 @@
+services:
+
+  nginx:
+    image: nginx:1.30-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/conf.d/default.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - auth
+      - content
+      - assessment
+      - frontend
+    networks:
+      - kms_internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    networks:
+      - kms_internal
+
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kms:kms@db_auth:5432/kms_auth
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
+    depends_on:
+      - db_auth
+      - redis
+    networks:
+      - kms_internal
+
+  content:
+    build:
+      context: ./services/content
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kms:kms@db_content:5432/kms_content
+    depends_on:
+      - db_content
+    networks:
+      - kms_internal
+
+  assessment:
+    build:
+      context: ./services/assessment
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kms:kms@db_assessment:5432/kms_assessment
+    depends_on:
+      - db_assessment
+    networks:
+      - kms_internal
+
+  db_auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kms_auth
+      POSTGRES_USER: kms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_auth_data:/var/lib/postgresql
+    ports:
+      - "5433:5432"
+    networks:
+      - kms_internal
+
+  db_content:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kms_content
+      POSTGRES_USER: kms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_content_data:/var/lib/postgresql
+    ports:
+      - "5434:5432"
+    networks:
+      - kms_internal
+
+  db_assessment:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kms_assessment
+      POSTGRES_USER: kms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_assessment_data:/var/lib/postgresql
+    ports:
+      - "5435:5432"
+    networks:
+      - kms_internal
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - kms_internal
+
+volumes:
+  pg_auth_data:
+  pg_content_data:
+  pg_assessment_data:
+
+networks:
+  kms_internal:
+    driver: bridge

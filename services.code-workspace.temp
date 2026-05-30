@@ -1,0 +1,77 @@
+{
+    "folders": [
+        {
+            "name": "KMS Root",
+            "path": "."
+        },
+        {
+            "name": "Auth Service",
+            "path": "services/auth"
+        },
+        {
+            "name": "Content Service",
+            "path": "services/content"
+        },
+        {
+            "name": "Assessment Service",
+            "path": "services/assessment"
+        },
+        {
+            "name": "Frontend",
+            "path": "frontend"
+        }
+    ],
+    "settings": {
+        "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff",
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.fixAll.ruff": "explicit",
+                "source.organizeImports.ruff": "explicit"
+            }
+        },
+        "ruff.nativeServer": "on",
+        "ruff.configuration": "/Users/joskmo/Уник/ДИПЛОМ/code/ruff.toml",
+        "python.analysis.typeCheckingMode": "off",
+        "python.analysis.diagnosticMode": "openFilesOnly",
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.diagnosticSeverityOverrides": {
+            "reportMissingModuleSource": "none",
+            "reportMissingImports": "none",
+            "reportUndefinedVariable": "none",
+            "reportGeneralTypeIssues": "none",
+            "reportAttributeAccessIssue": "none",
+            "reportCallIssue": "none",
+            "reportOptionalCall": "none",
+            "reportOptionalOperand": "none",
+            "reportOptionalSubscript": "none",
+            "reportOptionalMemberAccess": "none",
+            "reportOptionalIterable": "none",
+            "reportOptionalContextManager": "none",
+            "reportOptionalOperator": "none"
+        },
+        "python.terminal.activateEnvironment": false,
+        "python.analysis.exclude": [
+            "**/frontend",
+            "**/node_modules",
+            "**/.venv"
+        ],
+        "python.analysis.ignore": [
+            "**/frontend",
+            "**/node_modules",
+            "**/.venv"
+        ],
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.venv": true,
+            "**/.pytest_cache": true,
+            "**/node_modules": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "charliermarsh.ruff"
+        ]
+    }
+}

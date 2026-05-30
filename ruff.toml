@@ -59,6 +59,7 @@ ignore = [
     "S105",  # Hardcoded password string (too many false positives)
     "S311",  # Suspicious non-cryptographic random usage
     "UP040", # Type statement (too new, not fully supported)
+    "RUF001", # Ambiguous Unicode characters (false positives for Russian strings)
 ]
 
 # Allow autofix for all enabled rules

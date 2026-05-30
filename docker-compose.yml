@@ -1,16 +1,49 @@
 services:
 
-  nginx:
-    image: nginx:1.30-alpine
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-http://api-gateway}
     volumes:
-      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot-data:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    depends_on:
+      - api-gateway
+    networks:
+      - kms_internal
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: infra/nginx/Dockerfile
+    networks:
+      - kms_internal
     depends_on:
       - auth
       - content
       - assessment
-      - frontend
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot-data:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    entrypoint: /bin/sh
+    command: >
+      -c "
+        while :; do
+          certbot renew --quiet --webroot -w /var/www/certbot --deploy-hook 'touch /etc/letsencrypt/.reload-nginx' || true;
+          sleep 12h;
+        done
+      "
     networks:
       - kms_internal
 
@@ -19,7 +52,7 @@ services:
       context: ./services/auth
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=${AUTH_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:kms@db_auth:5432/kms_auth
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
@@ -35,12 +68,9 @@ services:
       context: ./services/content
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=${CONTENT_DATABASE_URL}
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql+asyncpg://kms:kms@db_content:5432/kms_content
     depends_on:
       - db_content
-      - redis
     networks:
       - kms_internal
 
@@ -49,21 +79,14 @@ services:
       context: ./services/assessment
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:kms@db_assessment:5432/kms_assessment
     depends_on:
       - db_assessment
     networks:
       - kms_internal
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    networks:
-      - kms_internal
-
   db_auth:
-    image: postgres:18-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: kms_auth
       POSTGRES_USER: kms
@@ -76,35 +99,41 @@ services:
       - kms_internal
 
   db_content:
-    image: postgres:18-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: kms_content
       POSTGRES_USER: kms
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_content_data:/var/lib/postgresql
+    ports:
+      - "5434:5432"
     networks:
       - kms_internal
 
   db_assessment:
-    image: postgres:18-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: kms_assessment
       POSTGRES_USER: kms
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_assessment_data:/var/lib/postgresql
+    ports:
+      - "5435:5432"
     networks:
       - kms_internal
 
   redis:
-    image: redis:8.6-alpine
+    image: redis:7-alpine
     ports:
       - "6379:6379"
     networks:
       - kms_internal
 
 volumes:
+  certbot-data:
+  certbot-www:
   pg_auth_data:
   pg_content_data:
   pg_assessment_data:

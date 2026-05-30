@@ -32,5 +32,6 @@ class HeuristicResponse(HeuristicBase):
     author_id: UUID
     manager_id: UUID
     is_approved: bool
+    pending_content: str | None
     created_at: datetime
     updated_at: datetime

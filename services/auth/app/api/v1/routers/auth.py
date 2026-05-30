@@ -1,8 +1,12 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
+    OAuth2PasswordRequestForm,
+)
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +28,7 @@ from app.schemas import RegisterWithInvitation, Token, UserResponse
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+http_bearer_optional = HTTPBearer(auto_error=False)
 
 
 async def get_redis() -> Redis:
@@ -44,17 +48,28 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
     return user
 
 
+async def get_token_from_header_or_cookie(
+    auth: HTTPAuthorizationCredentials | None = Depends(http_bearer_optional),
+    access_token: str | None = Cookie(default=None),
+) -> str | None:
+    """Return token from Authorization header or access_token cookie."""
+    return auth.credentials if auth else access_token
+
+
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: str | None = Depends(get_token_from_header_or_cookie),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> User:
-    """Validate token and return the current authenticated user."""
+    """Validate token from header or cookie and return the current authenticated user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if not token:
+        raise credentials_exception
 
     payload = decode_token(token)
     if payload is None:
@@ -170,11 +185,12 @@ async def register(user_data: RegisterWithInvitation, db: AsyncSession = Depends
 
 @router.post("/login", response_model=Token)
 async def login(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> Token:
-    """Authenticate user and return access and refresh tokens."""
+    """Authenticate user and return access and refresh tokens as HttpOnly cookies."""
     # Rate limiting: 5 attempts per minute per IP
     client_ip = "127.0.0.1"  # In production, get from request headers
     rate_key = f"rate_limit:login:{client_ip}"
@@ -206,33 +222,66 @@ async def login(
     )
     refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/logout")
 async def logout(
-    token: str = Depends(oauth2_scheme), redis: Redis = Depends(get_redis)
+    response: Response,
+    auth: HTTPAuthorizationCredentials | None = Depends(http_bearer_optional),
+    access_token_cookie: str | None = Cookie(default=None, alias="access_token"),
+    redis: Redis = Depends(get_redis),
 ) -> dict[str, str]:
-    """Invalidate the current access token by adding it to the blacklist."""
-    payload = decode_token(token)
-    if payload and payload.get("jti"):
-        jti = payload["jti"]
-        exp = payload.get("exp")
-        if exp:
-            ttl = int(exp) - int(datetime.now(UTC).timestamp())
-            if ttl > 0:
-                await redis.setex(f"blacklist:{jti}", ttl, "true")
+    """Invalidate the current access token and clear cookies."""
+    token = auth.credentials if auth else access_token_cookie
+    if token:
+        payload = decode_token(token)
+        if payload and payload.get("jti"):
+            jti = payload["jti"]
+            exp = payload.get("exp")
+            if exp:
+                ttl = int(exp) - int(datetime.now(UTC).timestamp())
+                if ttl > 0:
+                    await redis.setex(f"blacklist:{jti}", ttl, "true")
 
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
     return {"message": "Successfully logged out"}
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str,
+    response: Response,
+    refresh_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> Token:
-    """Refresh access token using a valid refresh token."""
+    """Refresh access token using a valid refresh token from cookie."""
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh токен отсутствует",
+        )
+
     payload = decode_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
@@ -259,7 +308,9 @@ async def refresh_token(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден"
+        )
 
     access_token = create_access_token(
         data={
@@ -271,4 +322,83 @@ async def refresh_token(
     )
     new_refresh_token = create_refresh_token(data={"sub": str(user.id), "jti": str(uuid4())})
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
     return Token(access_token=access_token, refresh_token=new_refresh_token)
+
+
+@router.get("/verify")
+async def verify_token(
+    token: str | None = Depends(get_token_from_header_or_cookie),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+) -> Response:
+    """Verify access token and return user identity headers for API Gateway."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token required",
+        )
+
+    payload = decode_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token type",
+        )
+
+    jti = payload.get("jti")
+    if jti:
+        is_blacklisted = await redis.get(f"blacklist:{jti}")
+        if is_blacklisted:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token revoked",
+            )
+
+    user_id = payload.get("sub")
+    role = payload.get("role")
+    if not user_id or not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    response = Response(status_code=status.HTTP_200_OK)
+    response.headers["X-User-ID"] = str(user_id)
+    response.headers["X-User-Role"] = role
+    manager_id = payload.get("manager_id")
+    if manager_id:
+        response.headers["X-Manager-ID"] = str(manager_id)
+    return response

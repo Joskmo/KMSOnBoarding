@@ -16,8 +16,8 @@ from tests.conftest import SEMINARIST_ID, create_question, create_test
 @pytest.mark.anyio
 async def test_start_attempt_success(
     client: AsyncClient,
-    seminarist_token: str,
-    methodist1_token: str,
+    seminarist_headers: dict,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Seminarist can start an attempt."""
@@ -27,7 +27,7 @@ async def test_start_attempt_success(
 
     response = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -52,7 +52,7 @@ async def test_start_attempt_unauthorized(
 @pytest.mark.anyio
 async def test_start_attempt_forbidden(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot start an attempt."""
@@ -60,7 +60,7 @@ async def test_start_attempt_forbidden(
 
     response = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 403
 
@@ -68,12 +68,12 @@ async def test_start_attempt_forbidden(
 @pytest.mark.anyio
 async def test_start_attempt_not_found(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
 ) -> None:
     """Starting attempt for non-existent test returns 404."""
     response = await client.get(
         f"/api/v1/attempts/start/{uuid4()}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 404
 
@@ -81,7 +81,7 @@ async def test_start_attempt_not_found(
 @pytest.mark.anyio
 async def test_start_attempt_candidate(
     client: AsyncClient,
-    candidate_token: str,
+    candidate_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Candidate can start an attempt."""
@@ -90,7 +90,7 @@ async def test_start_attempt_candidate(
 
     response = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {candidate_token}"},
+        headers=candidate_headers,
     )
     assert response.status_code == 200
 
@@ -98,7 +98,7 @@ async def test_start_attempt_candidate(
 @pytest.mark.anyio
 async def test_start_inactive_test_forbidden(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Starting inactive test returns 403."""
@@ -106,7 +106,7 @@ async def test_start_inactive_test_forbidden(
 
     response = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 403
 
@@ -114,7 +114,7 @@ async def test_start_inactive_test_forbidden(
 @pytest.mark.anyio
 async def test_continue_existing_attempt(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Repeated start returns existing active attempt without creating new one."""
@@ -123,20 +123,20 @@ async def test_continue_existing_attempt(
 
     resp1 = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert resp1.status_code == 200
 
     resp2 = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert resp2.status_code == 200
 
     # Should still be only 1 active attempt in DB
     response = await client.get(
         "/api/v1/attempts/my",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     data = response.json()
     active = [a for a in data["items"] if a["score"] == 0 and not a["is_passed"]]
@@ -151,8 +151,8 @@ async def test_continue_existing_attempt(
 @pytest.mark.anyio
 async def test_submit_attempt_success_single(
     client: AsyncClient,
-    seminarist_token: str,
-    methodist1_token: str,
+    seminarist_headers: dict,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Seminarist submits answers for single-choice questions."""
@@ -181,13 +181,13 @@ async def test_submit_attempt_success_single(
     # Start attempt
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     # Submit all correct
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "test_id": str(test_id),
             "answers": {
@@ -205,7 +205,7 @@ async def test_submit_attempt_success_single(
 @pytest.mark.anyio
 async def test_submit_attempt_score_boundary(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """is_passed is True when score == pass_score."""
@@ -233,13 +233,13 @@ async def test_submit_attempt_score_boundary(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     # 1 correct out of 2 = 50%
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "test_id": str(test_id),
             "answers": {
@@ -257,7 +257,7 @@ async def test_submit_attempt_score_boundary(
 @pytest.mark.anyio
 async def test_submit_attempt_multiple(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Multiple choice requires exact match."""
@@ -276,13 +276,13 @@ async def test_submit_attempt_multiple(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     # Exact match
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "test_id": str(test_id),
             "answers": {
@@ -298,7 +298,7 @@ async def test_submit_attempt_multiple(
 @pytest.mark.anyio
 async def test_submit_attempt_multiple_partial(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Partial match on multiple choice gives 0 points."""
@@ -317,13 +317,13 @@ async def test_submit_attempt_multiple_partial(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     # Only one correct selected
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "test_id": str(test_id),
             "answers": {
@@ -340,7 +340,7 @@ async def test_submit_attempt_multiple_partial(
 @pytest.mark.anyio
 async def test_submit_attempt_unknown_question(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Unknown question_id in answers returns 422."""
@@ -349,12 +349,12 @@ async def test_submit_attempt_unknown_question(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "test_id": str(test_id),
             "answers": {
@@ -369,7 +369,7 @@ async def test_submit_attempt_unknown_question(
 @pytest.mark.anyio
 async def test_submit_attempt_missing_answers(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Missing answers for some questions returns 422."""
@@ -379,12 +379,12 @@ async def test_submit_attempt_missing_answers(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={
             "test_id": str(test_id),
             "answers": {
@@ -414,7 +414,7 @@ async def test_submit_attempt_unauthorized(
 @pytest.mark.anyio
 async def test_submit_attempt_forbidden(
     client: AsyncClient,
-    methodist1_token: str,
+    methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot submit an attempt."""
@@ -422,7 +422,7 @@ async def test_submit_attempt_forbidden(
 
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
         json={"test_id": str(test_id), "answers": {}},
     )
     assert response.status_code == 403
@@ -431,12 +431,12 @@ async def test_submit_attempt_forbidden(
 @pytest.mark.anyio
 async def test_submit_attempt_not_found(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
 ) -> None:
     """Submitting attempt for non-existent test returns 404."""
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(uuid4()), "answers": {}},
     )
     assert response.status_code == 404
@@ -445,7 +445,7 @@ async def test_submit_attempt_not_found(
 @pytest.mark.anyio
 async def test_submit_without_start(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Submitting without starting returns 404."""
@@ -454,7 +454,7 @@ async def test_submit_without_start(
 
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     assert response.status_code == 404
@@ -463,7 +463,7 @@ async def test_submit_without_start(
 @pytest.mark.anyio
 async def test_timeout_auto_fail(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Timed-out attempt is auto-failed and new one can be started."""
@@ -475,7 +475,7 @@ async def test_timeout_auto_fail(
     # Start attempt
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     # Manually set started_at to 3 hours ago (simulate timeout)
@@ -490,7 +490,7 @@ async def test_timeout_auto_fail(
     # Next start should fail old attempt and allow new start
     response = await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
 
@@ -503,7 +503,7 @@ async def test_timeout_auto_fail(
 @pytest.mark.anyio
 async def test_list_my_attempts(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """User can list their own attempts."""
@@ -512,18 +512,18 @@ async def test_list_my_attempts(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     post_resp = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     assert post_resp.status_code == 201
 
     response = await client.get(
         "/api/v1/attempts/my",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -546,8 +546,8 @@ async def test_list_my_attempts_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_list_test_attempts(
     client: AsyncClient,
-    methodist1_token: str,
-    seminarist_token: str,
+    methodist1_headers: dict,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist can list attempts for their test."""
@@ -556,18 +556,18 @@ async def test_list_test_attempts(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     post_resp = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     assert post_resp.status_code == 201
 
     response = await client.get(
         f"/api/v1/attempts/test/{test_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -577,7 +577,7 @@ async def test_list_test_attempts(
 @pytest.mark.anyio
 async def test_list_test_attempts_forbidden(
     client: AsyncClient,
-    methodist2_token: str,
+    methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist cannot list attempts for another's test."""
@@ -585,7 +585,7 @@ async def test_list_test_attempts_forbidden(
 
     response = await client.get(
         f"/api/v1/attempts/test/{test_id}",
-        headers={"Authorization": f"Bearer {methodist2_token}"},
+        headers=methodist2_headers,
     )
     assert response.status_code == 403
 
@@ -605,7 +605,7 @@ async def test_list_test_attempts_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_get_attempt(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """User can get their own attempt."""
@@ -614,18 +614,18 @@ async def test_get_attempt(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     post_resp = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     attempt_id = post_resp.json()["id"]
 
     response = await client.get(
         f"/api/v1/attempts/{attempt_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -636,12 +636,12 @@ async def test_get_attempt(
 @pytest.mark.anyio
 async def test_get_attempt_not_found(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
 ) -> None:
     """Getting non-existent attempt returns 404."""
     response = await client.get(
         f"/api/v1/attempts/{uuid4()}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     assert response.status_code == 404
 
@@ -649,8 +649,8 @@ async def test_get_attempt_not_found(
 @pytest.mark.anyio
 async def test_get_attempt_forbidden(
     client: AsyncClient,
-    seminarist_token: str,
-    candidate_token: str,
+    seminarist_headers: dict,
+    candidate_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Candidate cannot get seminarist's attempt."""
@@ -659,18 +659,18 @@ async def test_get_attempt_forbidden(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     post_resp = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     attempt_id = post_resp.json()["id"]
 
     response = await client.get(
         f"/api/v1/attempts/{attempt_id}",
-        headers={"Authorization": f"Bearer {candidate_token}"},
+        headers=candidate_headers,
     )
     assert response.status_code == 403
 
@@ -685,7 +685,7 @@ async def test_get_attempt_unauthorized(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_submit_empty_test(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Submitting answers for a test with no questions returns score 0."""
@@ -693,12 +693,12 @@ async def test_submit_empty_test(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {}},
     )
     assert response.status_code == 201
@@ -710,7 +710,7 @@ async def test_submit_empty_test(
 @pytest.mark.anyio
 async def test_double_submit_returns_404(
     client: AsyncClient,
-    seminarist_token: str,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Second submit for the same test returns 404 because no active attempt exists."""
@@ -719,13 +719,13 @@ async def test_double_submit_returns_404(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
 
     # First submit
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     assert response.status_code == 201
@@ -733,7 +733,7 @@ async def test_double_submit_returns_404(
     # Second submit — no active attempt remains
     response = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     assert response.status_code == 404
@@ -742,8 +742,8 @@ async def test_double_submit_returns_404(
 @pytest.mark.anyio
 async def test_get_attempt_methodist_owner(
     client: AsyncClient,
-    methodist1_token: str,
-    seminarist_token: str,
+    methodist1_headers: dict,
+    seminarist_headers: dict,
     db: AsyncSession,
 ) -> None:
     """Methodist who owns the test can view seminarist's attempt."""
@@ -752,18 +752,18 @@ async def test_get_attempt_methodist_owner(
 
     await client.get(
         f"/api/v1/attempts/start/{test_id}",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
     )
     post_resp = await client.post(
         "/api/v1/attempts",
-        headers={"Authorization": f"Bearer {seminarist_token}"},
+        headers=seminarist_headers,
         json={"test_id": str(test_id), "answers": {str(q1): ["a"]}},
     )
     attempt_id = post_resp.json()["id"]
 
     response = await client.get(
         f"/api/v1/attempts/{attempt_id}",
-        headers={"Authorization": f"Bearer {methodist1_token}"},
+        headers=methodist1_headers,
     )
     assert response.status_code == 200
     data = response.json()

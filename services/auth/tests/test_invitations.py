@@ -199,7 +199,7 @@ async def test_register_with_used_invitation(client):
         },
     )
     assert response.status_code == 400
-    assert "already used" in response.json()["detail"]
+    assert "использован" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -229,7 +229,7 @@ async def test_register_with_expired_invitation(client, db):
         },
     )
     assert response.status_code == 400
-    assert "expired" in response.json()["detail"]
+    assert "истек" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -363,7 +363,7 @@ async def test_create_invitation_for_existing_user_email(client):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 422
-    assert "already exists" in response.json()["detail"]
+    assert "уже существует" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -423,7 +423,7 @@ async def test_register_with_wrong_email_for_invitation(client):
         },
     )
     assert response.status_code == 400
-    assert "does not match" in response.json()["detail"]
+    assert "не совпадает" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -668,7 +668,7 @@ async def test_register_with_invalid_invitation_token(client):
         },
     )
     assert response.status_code == 400
-    assert "Invalid invitation token" in response.json()["detail"]
+    assert "недействительный" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -743,7 +743,7 @@ async def test_methodist_cannot_assign_other_manager(client):
         headers={"Authorization": f"Bearer {m1_token}"},
     )
     assert response.status_code == 422
-    assert "Methodist can only assign subordinates to themselves" in response.json()["detail"]
+    assert "только себе" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

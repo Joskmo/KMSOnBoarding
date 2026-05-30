@@ -88,14 +88,17 @@ async def update_heuristic(
         )
 
     role = current_user["role"]
-    if role == "admin":
+    is_author = str(heuristic.author_id) == str(current_user["id"])
+    is_own_manager = str(heuristic.manager_id) == str(current_user["id"])
+
+    if role == "admin" or (role == "methodist" and is_own_manager):
         pass
-    elif str(heuristic.author_id) == str(current_user["id"]):
+    elif is_author:
         if heuristic.is_approved:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot edit approved heuristic",
-            )
+            update_data = heuristic_in.model_dump(exclude_unset=True)
+            if "content" in update_data:
+                update_data["pending_content"] = update_data.pop("content")
+            return await heuristic_crud.update(db, db_obj=heuristic, obj_in=update_data)
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -129,6 +132,52 @@ async def approve_heuristic(
     return await heuristic_crud.approve(db, db_obj=heuristic)
 
 
+@router.post("/{heuristic_id}/approve-edit", response_model=HeuristicResponse)
+async def approve_heuristic_edit(
+    heuristic_id: UUID,
+    current_user: dict = Depends(require_role(["admin", "methodist"])),
+    db: AsyncSession = Depends(get_db),
+) -> Heuristic:
+    """Approve pending edits for a heuristic."""
+    heuristic = await heuristic_crud.get(db, heuristic_id)
+    if not heuristic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Heuristic not found",
+        )
+
+    if current_user["role"] == "methodist" and str(heuristic.manager_id) != str(current_user["id"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    return await heuristic_crud.approve_edit(db, db_obj=heuristic)
+
+
+@router.post("/{heuristic_id}/reject-edit", response_model=HeuristicResponse)
+async def reject_heuristic_edit(
+    heuristic_id: UUID,
+    current_user: dict = Depends(require_role(["admin", "methodist"])),
+    db: AsyncSession = Depends(get_db),
+) -> Heuristic:
+    """Reject pending edits for a heuristic."""
+    heuristic = await heuristic_crud.get(db, heuristic_id)
+    if not heuristic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Heuristic not found",
+        )
+
+    if current_user["role"] == "methodist" and str(heuristic.manager_id) != str(current_user["id"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    return await heuristic_crud.reject_edit(db, db_obj=heuristic)
+
+
 @router.delete("/{heuristic_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_heuristic(
     heuristic_id: UUID,
@@ -146,16 +195,11 @@ async def delete_heuristic(
     role = current_user["role"]
     can_delete = False
 
-    if role == "admin" or (
-        role == "methodist" and str(heuristic.manager_id) == str(current_user["id"])
+    if (
+        role == "admin"
+        or (role == "methodist" and str(heuristic.manager_id) == str(current_user["id"]))
+        or str(heuristic.author_id) == str(current_user["id"])
     ):
-        can_delete = True
-    elif str(heuristic.author_id) == str(current_user["id"]):
-        if heuristic.is_approved:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete approved heuristic",
-            )
         can_delete = True
 
     if not can_delete:

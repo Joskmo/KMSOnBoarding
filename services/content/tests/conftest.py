@@ -1,13 +1,11 @@
 """Pytest fixtures and helpers for content service tests."""
 
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from jose import jwt
 
 # Monkeypatch SQLite UUID rendering to CHAR(32) to avoid numeric affinity issues
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
@@ -46,8 +44,6 @@ def _fixed_bind_processor(self, dialect):
 Uuid.bind_processor = _fixed_bind_processor
 
 from app.core.config import get_settings
-from app.core.deps import get_redis_pool
-from app.crud import heuristic as heuristic_crud, lesson as lesson_crud, module as module_crud
 from app.db.models import Base
 from app.db.session import get_db
 from app.main import app
@@ -74,19 +70,6 @@ SEMINARIST_ID = UUID("44444444-4444-4444-4444-444444444444")
 CANDIDATE_ID = UUID("55555555-5555-5555-5555-555555555555")
 
 
-class FakeRedis:
-    """Fake Redis client that always returns None for blacklist checks."""
-
-    async def get(self, key: str) -> None:
-        return None
-
-    async def set(self, key: str, value: str, ex: int | None = None) -> None:
-        pass
-
-    async def aclose(self) -> None:
-        pass
-
-
 async def override_get_db() -> AsyncGenerator[AsyncSession]:
     """Override get_db dependency with a test database session."""
     async with async_session() as session:
@@ -100,13 +83,7 @@ async def override_get_db() -> AsyncGenerator[AsyncSession]:
             await session.close()
 
 
-async def override_get_redis_pool() -> FakeRedis:
-    """Override Redis with a fake client."""
-    return FakeRedis()
-
-
 app.dependency_overrides[get_db] = override_get_db
-app.dependency_overrides[get_redis_pool] = override_get_redis_pool
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -135,53 +112,45 @@ async def db() -> AsyncGenerator[AsyncSession]:
         await session.close()
 
 
-def create_token(
-    user_id: UUID,
-    role: str,
-    manager_id: UUID | None = None,
-) -> str:
-    """Generate a JWT access token for testing."""
-    now = datetime.now(UTC)
-    payload = {
-        "sub": str(user_id),
-        "type": "access",
-        "role": role,
-        "manager_id": str(manager_id) if manager_id else None,
-        "jti": str(uuid4()),
-        "exp": now + timedelta(hours=1),
-        "iat": now,
+@pytest.fixture
+def admin_headers() -> dict:
+    return {"X-User-ID": str(ADMIN_ID), "X-User-Role": "admin"}
+
+
+@pytest.fixture
+def methodist1_headers() -> dict:
+    return {"X-User-ID": str(METHODIST_1_ID), "X-User-Role": "methodist"}
+
+
+@pytest.fixture
+def methodist2_headers() -> dict:
+    return {"X-User-ID": str(METHODIST_2_ID), "X-User-Role": "methodist"}
+
+
+@pytest.fixture
+def seminarist_headers() -> dict:
+    return {
+        "X-User-ID": str(SEMINARIST_ID),
+        "X-User-Role": "seminarist",
+        "X-Manager-ID": str(METHODIST_1_ID),
     }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 @pytest.fixture
-def admin_token() -> str:
-    return create_token(ADMIN_ID, "admin")
-
-
-@pytest.fixture
-def methodist1_token() -> str:
-    return create_token(METHODIST_1_ID, "methodist")
-
-
-@pytest.fixture
-def methodist2_token() -> str:
-    return create_token(METHODIST_2_ID, "methodist")
-
-
-@pytest.fixture
-def seminarist_token() -> str:
-    return create_token(SEMINARIST_ID, "seminarist", manager_id=METHODIST_1_ID)
-
-
-@pytest.fixture
-def candidate_token() -> str:
-    return create_token(CANDIDATE_ID, "candidate", manager_id=METHODIST_1_ID)
+def candidate_headers() -> dict:
+    return {
+        "X-User-ID": str(CANDIDATE_ID),
+        "X-User-Role": "candidate",
+        "X-Manager-ID": str(METHODIST_1_ID),
+    }
 
 
 # ------------------------------------------------------------------
 # DB helper functions
 # ------------------------------------------------------------------
+
+
+from app.crud import heuristic as heuristic_crud, lesson as lesson_crud, module as module_crud
 
 
 async def create_module(
@@ -236,6 +205,7 @@ async def create_heuristic(
     author_id: UUID | None = None,
     manager_id: UUID | None = None,
     is_approved: bool = False,
+    pending_content: str | None = None,
 ) -> UUID:
     """Create a heuristic directly in the database."""
     heuristic = await heuristic_crud.create(
@@ -246,6 +216,7 @@ async def create_heuristic(
             "author_id": author_id or SEMINARIST_ID,
             "manager_id": manager_id or METHODIST_1_ID,
             "is_approved": is_approved,
+            "pending_content": pending_content,
         },
     )
     return heuristic.id

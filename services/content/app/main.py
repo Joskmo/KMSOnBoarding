@@ -5,14 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.v1.router import router as api_router
-from app.core.redis import close_redis_pool
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Application lifespan handler."""
     yield
-    await close_redis_pool()
 
 
 app = FastAPI(

@@ -35,7 +35,7 @@ async def test_register_second_user_requires_invitation(client):
         json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
     )
     assert response.status_code == 400
-    assert "invitation" in response.json()["detail"].lower()
+    assert "инвайт" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -50,12 +50,12 @@ async def test_register_duplicate_email(client):
         json={"email": "test@example.com", "password": "password123", "full_name": "Test User 2"},
     )
     assert response.status_code == 400
-    assert "already registered" in response.json()["detail"]
+    assert "уже зарегистрирован" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
 async def test_login(client):
-    """Test successful login returns tokens."""
+    """Test successful login returns tokens and sets HttpOnly cookies."""
     await client.post(
         "/api/v1/auth/register",
         json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
@@ -67,6 +67,11 @@ async def test_login(client):
     data = response.json()
     assert "access_token" in data
     assert "refresh_token" in data
+    assert "set-cookie" in response.headers
+    cookies = response.headers["set-cookie"]
+    assert "access_token=" in cookies
+    assert "refresh_token=" in cookies
+    assert "HttpOnly" in cookies
 
 
 @pytest.mark.asyncio
@@ -101,16 +106,15 @@ async def test_get_me_unauthorized(client):
 
 @pytest.mark.asyncio
 async def test_get_me_authorized(client):
-    """Test accessing /me with valid token returns user data."""
+    """Test accessing /me via cookie auth returns user data."""
     await client.post(
         "/api/v1/auth/register",
         json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
     )
-    login_response = await client.post(
+    await client.post(
         "/api/v1/auth/login", data={"username": "test@example.com", "password": "password123"}
     )
-    token = login_response.json()["access_token"]
-    response = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get("/api/v1/users/me")
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "test@example.com"
@@ -227,7 +231,7 @@ async def test_methodist_can_update_own_profile(client):
 
 @pytest.mark.asyncio
 async def test_methodist_list_includes_self(client):
-    """Methodist user list should include themselves."""
+    """Methodist user list should include themselves and all other users."""
     # Register admin
     await client.post(
         "/api/v1/auth/register",
@@ -261,16 +265,17 @@ async def test_methodist_list_includes_self(client):
     )
     methodist_token = methodist_login.json()["access_token"]
 
-    # Methodist lists users - should see themselves even with no subordinates
+    # Methodist lists users - sees all users including admin and self
     response = await client.get(
         "/api/v1/users/",
         headers={"Authorization": f"Bearer {methodist_token}"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["email"] == "methodist@example.com"
-    assert data[0]["role"] == "methodist"
+    assert len(data) == 2
+    emails = {u["email"] for u in data}
+    assert "methodist@example.com" in emails
+    assert "admin@example.com" in emails
 
 
 @pytest.mark.asyncio
@@ -380,7 +385,7 @@ async def test_admin_cannot_delete_user_with_subordinates(client):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 400
-    assert "subordinates" in response.json()["detail"].lower()
+    assert "подчиненными" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -442,7 +447,7 @@ async def test_non_admin_cannot_delete_user(client):
         headers={"Authorization": f"Bearer {methodist_token}"},
     )
     assert response.status_code == 403
-    assert "only admin" in response.json()["detail"].lower()
+    assert "админ" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -464,3 +469,48 @@ async def test_delete_nonexistent_user(client):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_refresh_via_cookie(client):
+    """Test refresh endpoint reads refresh_token from cookie and updates cookies."""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
+    )
+    login_response = await client.post(
+        "/api/v1/auth/login", data={"username": "test@example.com", "password": "password123"}
+    )
+    assert "set-cookie" in login_response.headers
+
+    refresh_response = await client.post("/api/v1/auth/refresh")
+    assert refresh_response.status_code == 200
+    data = refresh_response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert "set-cookie" in refresh_response.headers
+    cookies = refresh_response.headers["set-cookie"]
+    assert "access_token=" in cookies
+    assert "refresh_token=" in cookies
+
+
+@pytest.mark.asyncio
+async def test_logout_clears_cookies(client):
+    """Test logout invalidates token and clears cookies."""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "test@example.com", "password": "password123", "full_name": "Test User"},
+    )
+    await client.post(
+        "/api/v1/auth/login", data={"username": "test@example.com", "password": "password123"}
+    )
+
+    logout_response = await client.post("/api/v1/auth/logout")
+    assert logout_response.status_code == 200
+    assert "set-cookie" in logout_response.headers
+    cookies = logout_response.headers["set-cookie"]
+    assert "access_token=" in cookies
+    assert "refresh_token=" in cookies
+    # After logout, accessing protected endpoint without cookie should fail
+    me_response = await client.get("/api/v1/users/me")
+    assert me_response.status_code == 401

@@ -19,9 +19,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(
-    data: dict, role: str, expires_delta: timedelta | None = None
-) -> str:
+def create_access_token(data: dict, role: str, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token with optional custom expiry."""
     to_encode = data.copy()
     if expires_delta:
