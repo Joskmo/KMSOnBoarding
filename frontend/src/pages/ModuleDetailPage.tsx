@@ -89,9 +89,20 @@ export function ModuleDetailPage() {
     setError('');
     try {
       await contentApi.patch(`/modules/${id}/status`, { status: 'published' });
-      fetchData();
+      navigate('/modules');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка публикации');
+    }
+  };
+
+  const handleArchiveModule = async () => {
+    if (!window.confirm('Отправить модуль в архив?')) return;
+    setError('');
+    try {
+      await contentApi.patch(`/modules/${id}/status`, { status: 'archived' });
+      navigate('/modules');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка архивации');
     }
   };
 
@@ -249,19 +260,27 @@ export function ModuleDetailPage() {
               module.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
               'bg-gray-100 text-gray-800'
             }`}>
-              {module.status}
+              {module.status === 'published' ? 'Опубликован' : module.status === 'draft' ? 'Черновик' : 'В архиве'}
             </span>
           </div>
         </div>
 
         <div className="flex gap-2">
           <RoleGuard allowedRoles={['admin', 'methodist']}>
-            {module.status === 'draft' && (
+            {(module.status === 'draft' || module.status === 'archived') && (
               <button
                 onClick={handlePublishModule}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 Опубликовать
+              </button>
+            )}
+            {module.status === 'published' && (
+              <button
+                onClick={handleArchiveModule}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                В архив
               </button>
             )}
             <Link

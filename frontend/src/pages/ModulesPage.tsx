@@ -96,7 +96,7 @@ export function ModulesPage() {
                       module.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {module.status}
+                      {module.status === 'published' ? 'Опубликован' : module.status === 'draft' ? 'Черновик' : 'В архиве'}
                     </span>
                     <span className="text-xs text-gray-500">
                       Уроков: {module.lesson_count}
