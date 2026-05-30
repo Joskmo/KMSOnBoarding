@@ -9,7 +9,7 @@ export default defineConfig({
     allowedHosts: ['host.docker.internal', 'localhost', 'frontend'],
     proxy: {
       '/api': {
-        target: 'http://localhost:80',
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:80',
         changeOrigin: true,
       },
     },

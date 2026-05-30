@@ -20,6 +20,8 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://nginx:80
     networks:
       - kms_internal
 
