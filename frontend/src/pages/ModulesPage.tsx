@@ -8,7 +8,7 @@ export function ModulesPage() {
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'published' | 'other'>('published');
+  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'archived'>('published');
 
   useEffect(() => {
     const fetchModules = async () => {
@@ -26,9 +26,15 @@ export function ModulesPage() {
   }, []);
 
   const publishedModules = modules.filter((m) => m.status === 'published');
-  const otherModules = modules.filter((m) => m.status !== 'published');
+  const draftModules = modules.filter((m) => m.status === 'draft');
+  const archivedModules = modules.filter((m) => m.status === 'archived');
 
-  const displayedModules = activeTab === 'published' ? publishedModules : otherModules;
+  const displayedModules =
+    activeTab === 'published'
+      ? publishedModules
+      : activeTab === 'draft'
+        ? draftModules
+        : archivedModules;
 
   return (
     <div>
@@ -59,14 +65,24 @@ export function ModulesPage() {
             Опубликованные {publishedModules.length > 0 && `(${publishedModules.length})`}
           </button>
           <button
-            onClick={() => setActiveTab('other')}
+            onClick={() => setActiveTab('draft')}
             className={`pb-2 text-sm font-medium border-b-2 transition ${
-              activeTab === 'other'
+              activeTab === 'draft'
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Другие {otherModules.length > 0 && `(${otherModules.length})`}
+            Черновики {draftModules.length > 0 && `(${draftModules.length})`}
+          </button>
+          <button
+            onClick={() => setActiveTab('archived')}
+            className={`pb-2 text-sm font-medium border-b-2 transition ${
+              activeTab === 'archived'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Архив {archivedModules.length > 0 && `(${archivedModules.length})`}
           </button>
         </nav>
       </div>
@@ -108,7 +124,11 @@ export function ModulesPage() {
           ))}
           {displayedModules.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              {activeTab === 'published' ? 'Нет опубликованных модулей' : 'Нет других модулей'}
+              {activeTab === 'published'
+                ? 'Нет опубликованных модулей'
+                : activeTab === 'draft'
+                  ? 'Нет черновиков'
+                  : 'Нет архивных модулей'}
             </div>
           )}
         </div>
