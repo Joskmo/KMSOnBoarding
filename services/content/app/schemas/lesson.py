@@ -10,7 +10,7 @@ class LessonBase(BaseModel):
     """Base lesson schema."""
 
     title: str
-    r7_uri: str
+    r7_uri: str | None = None
     content: str | None = None
 
 
