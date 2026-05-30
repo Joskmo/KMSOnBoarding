@@ -179,13 +179,6 @@ async def update_module_status(
 
     new_status = status_update.status
 
-    # Business rule: published -> draft is forbidden
-    if module.status == "published" and new_status == "draft":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot revert published module to draft",
-        )
-
     return await module_crud.update(db, db_obj=module, obj_in={"status": new_status})
 
 
