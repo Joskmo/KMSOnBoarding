@@ -87,14 +87,20 @@ export function ModuleDetailPage() {
     try {
       const res = await authApi.get('/users');
       const allUsers: User[] = res.data;
+      const assignedIds = new Set(assignments.map((a) => a.user_id));
       let filtered: User[];
       if (hasRole(['admin'])) {
-        filtered = allUsers.filter((u) => u.role === 'candidate' || u.role === 'seminarist' || u.role === 'methodist');
+        filtered = allUsers.filter(
+          (u) =>
+            (u.role === 'candidate' || u.role === 'seminarist' || u.role === 'methodist') &&
+            !assignedIds.has(u.id)
+        );
       } else {
         filtered = allUsers.filter(
           (u) =>
             (u.role === 'candidate' || u.role === 'seminarist') &&
-            u.manager_id === user?.id
+            u.manager_id === user?.id &&
+            !assignedIds.has(u.id)
         );
       }
       setAvailableUsers(filtered);
