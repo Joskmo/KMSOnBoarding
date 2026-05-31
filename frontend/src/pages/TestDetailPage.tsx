@@ -53,6 +53,12 @@ export function TestDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/tests')}
+            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            ← Назад
+          </button>
           {isManager && (
             <>
               <Link
