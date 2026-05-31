@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTest, getQuestions } from '../api/assessment';
+import { getTest, getQuestions, updateTest } from '../api/assessment';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { Test, Question } from '../types';
 
@@ -34,6 +34,16 @@ export function TestDetailPage() {
     if (id) fetchTest();
   }, [id]);
 
+  const handleToggleActive = async () => {
+    if (!test) return;
+    try {
+      await updateTest(test.id, { is_active: !test.is_active });
+      setTest({ ...test, is_active: !test.is_active });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка изменения статуса');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
   if (error) return <div className="text-red-600 py-8">{error}</div>;
   if (!test) return <div>Тест не найден</div>;
@@ -62,6 +72,12 @@ export function TestDetailPage() {
         <div className="flex gap-2">
           {isManager && (
             <>
+              <button
+                onClick={handleToggleActive}
+                className={`px-4 py-2 rounded ${test.is_active ? 'bg-yellow-600 text-white hover:bg-yellow-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
+              >
+                {test.is_active ? 'Деактивировать' : 'Активировать'}
+              </button>
               <Link
                 to={`/tests/${test.id}/edit`}
                 className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
