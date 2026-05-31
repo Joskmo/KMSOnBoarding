@@ -46,3 +46,17 @@ class LessonResponse(LessonBase):
     content: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class R7UriValidationRequest(BaseModel):
+    """Schema for R7 URI validation request."""
+
+    uri: str
+
+
+class R7UriValidationResponse(BaseModel):
+    """Schema for R7 URI validation response."""
+
+    valid: bool
+    message: str
+    status_code: int | None = None

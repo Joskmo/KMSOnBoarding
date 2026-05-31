@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +11,13 @@ from app.core.permissions import can_access_module
 from app.crud import lesson as lesson_crud, module as module_crud
 from app.db.models import Lesson, Module
 from app.db.session import get_db
-from app.schemas import LessonReorder, LessonResponse, LessonUpdate
+from app.schemas import (
+    LessonReorder,
+    LessonResponse,
+    LessonUpdate,
+    R7UriValidationRequest,
+    R7UriValidationResponse,
+)
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 
@@ -128,3 +135,69 @@ async def delete_lesson(
         )
 
     await lesson_crud.delete(db, db_obj=lesson)
+
+
+@router.post("/validate-r7-uri", response_model=R7UriValidationResponse)
+async def validate_r7_uri(
+    data: R7UriValidationRequest,
+    current_user: dict = Depends(get_current_user),
+) -> R7UriValidationResponse:
+    """Validate an R7 Office URI by making a HEAD request from the server.
+
+    This endpoint proxies the validation to avoid CORS issues in the browser.
+    """
+    try:
+        parsed = __import__("urllib.parse").parse.urlparse(data.uri)
+        if not parsed.scheme or not parsed.netloc:
+            return R7UriValidationResponse(
+                valid=False,
+                message="Некорректный формат URI.",
+            )
+    except Exception:
+        return R7UriValidationResponse(
+            valid=False,
+            message="Некорректный формат URI.",
+        )
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+        try:
+            response = await client.head(str(data.uri))
+            status = response.status_code
+            if 200 <= status < 400:
+                return R7UriValidationResponse(
+                    valid=True,
+                    message="Ссылка доступна",
+                    status_code=status,
+                )
+            if status == 403:
+                return R7UriValidationResponse(
+                    valid=True,
+                    message="Ссылка существует, но требует авторизации",
+                    status_code=status,
+                )
+            if status == 404:
+                return R7UriValidationResponse(
+                    valid=False,
+                    message="Ссылка не найдена (404)",
+                    status_code=status,
+                )
+            return R7UriValidationResponse(
+                valid=False,
+                message=f"Сервер ответил со статусом {status}. Ссылка может быть недоступна.",
+                status_code=status,
+            )
+        except httpx.TimeoutException:
+            return R7UriValidationResponse(
+                valid=False,
+                message="Превышено время ожидания ответа от сервера.",
+            )
+        except httpx.NetworkError:
+            return R7UriValidationResponse(
+                valid=False,
+                message="Не удалось установить соединение с сервером.",
+            )
+        except Exception:
+            return R7UriValidationResponse(
+                valid=False,
+                message="Не удалось проверить ссылку. Убедитесь, что URI корректен.",
+            )

@@ -10,6 +10,8 @@ from app.schemas.lesson import (
     LessonReorder,
     LessonResponse,
     LessonUpdate,
+    R7UriValidationRequest,
+    R7UriValidationResponse,
 )
 from app.schemas.module import (
     ModuleAssignmentCreate,
@@ -36,4 +38,6 @@ __all__ = [
     "ModuleStatusUpdate",
     "ModuleUpdate",
     "PaginatedModules",
+    "R7UriValidationRequest",
+    "R7UriValidationResponse",
 ]
