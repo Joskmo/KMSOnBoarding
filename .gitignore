@@ -15,3 +15,5 @@ notes
 .opencode/
 AGENTS.md
 *.tsbuildinfo
+*.temp
+.python-version

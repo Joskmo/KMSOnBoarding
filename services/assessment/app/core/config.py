@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://kms:kms@localhost:5435/kms_assessment"
     REDIS_URL: str = "redis://localhost:6379/0"
-    SECRET_KEY: str = "super-secret-key-change-in-prod"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
 
     model_config = SettingsConfigDict(
