@@ -40,6 +40,13 @@ export function TestDetailPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate('/tests')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-bold">{test.title}</h1>
@@ -53,12 +60,6 @@ export function TestDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate('/tests')}
-            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-          >
-            ← Назад
-          </button>
           {isManager && (
             <>
               <Link

@@ -118,16 +118,14 @@ export function TestEditPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Редактирование теста</h1>
-        <button
-          type="button"
-          onClick={() => navigate('/tests')}
-          className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-        >
-          ← Назад
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate(`/tests/${id}`)}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
+      <h1 className="text-2xl font-bold mb-4">Редактирование теста</h1>
       {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
 
       <div className="border-b border-gray-200 mb-6">
