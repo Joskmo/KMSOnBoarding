@@ -7,6 +7,7 @@ LE_DIR="/etc/letsencrypt/live/$DOMAIN"
 
 mkdir -p $SSL_DIR
 
+# Check for Let's Encrypt certs (including if certbot already created them)
 if [ -f "$LE_DIR/fullchain.pem" ] && [ -f "$LE_DIR/privkey.pem" ]; then
     echo "Using Let's Encrypt certificates for $DOMAIN"
     cp "$LE_DIR/fullchain.pem" "$SSL_DIR/cert.pem"
@@ -24,6 +25,7 @@ fi
 envsubst '${API_GATEWAY_URL} ${DOMAIN}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Background: watch for cert renewal trigger and reload nginx
+# Polling every 5 seconds instead of 60 to catch updates faster
 (
     while :; do
         if [ -f /etc/letsencrypt/.reload-nginx ]; then
@@ -35,7 +37,7 @@ envsubst '${API_GATEWAY_URL} ${DOMAIN}' < /etc/nginx/templates/default.conf.temp
             fi
             nginx -s reload || true
         fi
-        sleep 60
+        sleep 5
     done
 ) &
 
