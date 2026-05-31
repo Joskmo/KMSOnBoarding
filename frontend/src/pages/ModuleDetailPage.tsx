@@ -52,17 +52,20 @@ export function ModuleDetailPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [assignLoading, setAssignLoading] = useState(false);
 
+  const isOwnModule = module?.author_id === user?.id;
+  const canManage = hasRole(['admin']) || (hasRole(['methodist']) && isOwnModule);
+
   const canModerate = () => {
     if (!user) return false;
     if (hasRole(['admin'])) return true;
-    if (hasRole(['methodist']) && module?.manager_id === user.id) return true;
+    if (hasRole(['methodist']) && isOwnModule) return true;
     return false;
   };
 
   const canEditHeuristic = (h: Heuristic) => {
     if (!user) return false;
     if (hasRole(['admin'])) return true;
-    if (hasRole(['methodist']) && module?.manager_id === user.id) return true;
+    if (hasRole(['methodist']) && isOwnModule) return true;
     if (h.author_id === user.id) return true;
     return false;
   };
@@ -368,59 +371,66 @@ export function ModuleDetailPage() {
             }`}>
               {module.status === 'published' ? 'Опубликован' : module.status === 'draft' ? 'Черновик' : 'В архиве'}
             </span>
+            {hasRole(['methodist']) && !isOwnModule && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                Назначен
+              </span>
+            )}
           </div>
         </div>
 
         <div className="flex gap-2">
-          <RoleGuard allowedRoles={['admin', 'methodist']}>
-            {(module.status === 'draft' || module.status === 'archived') && (
-              <button
-                onClick={handlePublishModule}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          {canManage && (
+            <>
+              {(module.status === 'draft' || module.status === 'archived') && (
+                <button
+                  onClick={handlePublishModule}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Опубликовать
+                </button>
+              )}
+              {(module.status === 'archived' || module.status === 'published') && (
+                <button
+                  onClick={handleRestoreToDraft}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                >
+                  В черновик
+                </button>
+              )}
+              {(module.status === 'draft' || module.status === 'published') && (
+                <button
+                  onClick={handleArchiveModule}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  В архив
+                </button>
+              )}
+              <Link
+                to={`/tests/create?module_id=${id}`}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Опубликовать
-              </button>
-            )}
-            {(module.status === 'archived' || module.status === 'published') && (
-              <button
-                onClick={handleRestoreToDraft}
-                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                + Создать тест
+              </Link>
+              <Link
+                to={`/modules/${id}/edit`}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
               >
-                В черновик
-              </button>
-            )}
-            {(module.status === 'draft' || module.status === 'published') && (
+                Редактировать
+              </Link>
               <button
-                onClick={handleArchiveModule}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                onClick={handleDeleteModule}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
-                В архив
+                Удалить
               </button>
-            )}
-            <Link
-              to={`/tests/create?module_id=${id}`}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              + Создать тест
-            </Link>
-            <Link
-              to={`/modules/${id}/edit`}
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-            >
-              Редактировать
-            </Link>
-            <button
-              onClick={handleDeleteModule}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Удалить
-            </button>
-          </RoleGuard>
+            </>
+          )}
         </div>
       </div>
 
       {/* Назначения */}
-      <RoleGuard allowedRoles={['admin', 'methodist']}>
+      {canManage && (
         <div className="mt-6 bg-white p-6 rounded-lg shadow">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Назначения ({assignments.length})</h2>
@@ -451,7 +461,7 @@ export function ModuleDetailPage() {
             </div>
           )}
         </div>
-      </RoleGuard>
+      )}
 
       {/* Assign Modal */}
       {showAssignModal && (
@@ -531,8 +541,8 @@ export function ModuleDetailPage() {
           ))}
         </div>
 
-        <RoleGuard allowedRoles={['admin', 'methodist']}>
-          {!showLessonForm ? (
+        {canManage && (
+          !showLessonForm ? (
             <button
               onClick={() => setShowLessonForm(true)}
               className="mt-4 px-4 py-2 border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50"
@@ -603,8 +613,8 @@ export function ModuleDetailPage() {
                 </div>
               </div>
             </form>
-          )}
-        </RoleGuard>
+          )
+        )}
       </div>
 
       {/* Эвристики */}
@@ -648,16 +658,14 @@ export function ModuleDetailPage() {
                           </button>
                         </>
                       )}
-                      <RoleGuard allowedRoles={['admin', 'methodist']}>
-                        {!h.is_approved && canModerate() && (
-                          <button
-                            onClick={() => handleApproveHeuristic(h.id)}
-                            className="text-xs text-indigo-600 hover:underline"
-                          >
-                            Одобрить
-                          </button>
-                        )}
-                      </RoleGuard>
+                      {!h.is_approved && canModerate() && (
+                        <button
+                          onClick={() => handleApproveHeuristic(h.id)}
+                          className="text-xs text-indigo-600 hover:underline"
+                        >
+                          Одобрить
+                        </button>
+                      )}
                     </div>
 
                     {/* Pending edits moderation block */}
