@@ -50,13 +50,33 @@ async def test_start_attempt_unauthorized(
 
 
 @pytest.mark.anyio
-async def test_start_attempt_forbidden(
+async def test_start_attempt_methodist_success(
     client: AsyncClient,
     methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
-    """Methodist cannot start an attempt."""
-    test_id = await create_test(db, is_active=True)
+    """Methodist can start an attempt for an active test."""
+    test_id = await create_test(db, title="Methodist Attempt", is_active=True)
+    await create_question(db, test_id, text="Q1")
+
+    response = await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers=methodist1_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Methodist Attempt"
+    assert len(data["questions"]) == 1
+
+
+@pytest.mark.anyio
+async def test_start_inactive_test_methodist_forbidden(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist cannot start an attempt for an inactive test."""
+    test_id = await create_test(db, is_active=False)
 
     response = await client.get(
         f"/api/v1/attempts/start/{test_id}",
@@ -412,20 +432,40 @@ async def test_submit_attempt_unauthorized(
 
 
 @pytest.mark.anyio
-async def test_submit_attempt_forbidden(
+async def test_submit_attempt_methodist_success(
     client: AsyncClient,
     methodist1_headers: dict,
     db: AsyncSession,
 ) -> None:
-    """Methodist cannot submit an attempt."""
-    test_id = await create_test(db, is_active=True)
+    """Methodist can submit an attempt."""
+    test_id = await create_test(db, title="Methodist Submit", is_active=True)
+    q1 = await create_question(
+        db,
+        test_id,
+        text="Q1",
+        qtype="single",
+        options=[
+            {"id": "a", "text": "Wrong", "is_correct": False},
+            {"id": "b", "text": "Correct", "is_correct": True},
+        ],
+    )
 
+    # Start attempt
+    await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers=methodist1_headers,
+    )
+
+    # Submit
     response = await client.post(
         "/api/v1/attempts",
         headers=methodist1_headers,
-        json={"test_id": str(test_id), "answers": {}},
+        json={"test_id": str(test_id), "answers": {str(q1): ["b"]}},
     )
-    assert response.status_code == 403
+    assert response.status_code == 201
+    data = response.json()
+    assert data["score"] == 100
+    assert data["is_passed"] is True
 
 
 @pytest.mark.anyio
@@ -768,3 +808,42 @@ async def test_get_attempt_methodist_owner(
     assert response.status_code == 200
     data = response.json()
     assert "answers" in data
+
+
+@pytest.mark.anyio
+async def test_get_attempt_methodist_own_attempt(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist can view their own attempt."""
+    test_id = await create_test(db, title="Own Attempt", is_active=True)
+    q1 = await create_question(
+        db,
+        test_id,
+        text="Q1",
+        qtype="single",
+        options=[
+            {"id": "a", "text": "Wrong", "is_correct": False},
+            {"id": "b", "text": "Correct", "is_correct": True},
+        ],
+    )
+
+    await client.get(
+        f"/api/v1/attempts/start/{test_id}",
+        headers=methodist1_headers,
+    )
+    post_resp = await client.post(
+        "/api/v1/attempts",
+        headers=methodist1_headers,
+        json={"test_id": str(test_id), "answers": {str(q1): ["b"]}},
+    )
+    attempt_id = post_resp.json()["id"]
+
+    response = await client.get(
+        f"/api/v1/attempts/{attempt_id}",
+        headers=methodist1_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["score"] == 100

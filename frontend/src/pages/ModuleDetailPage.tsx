@@ -828,7 +828,7 @@ export function ModuleDetailPage() {
                       </button>
                     </>
                   )}
-                  {hasRole(['seminarist', 'candidate']) && test.is_active && (
+                  {hasRole(['methodist', 'seminarist', 'candidate']) && test.is_active && (
                     <button
                       onClick={() => navigate(`/tests/${test.id}/take`)}
                       className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
