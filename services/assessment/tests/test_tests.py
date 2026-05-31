@@ -402,6 +402,52 @@ async def test_update_test_pass_score_out_of_range(
     assert response.status_code == 422
 
 
+@pytest.mark.anyio
+async def test_update_test_module_id(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist can change test module_id."""
+    test_id = await create_test(db, title="Module Change")
+    new_module_id = str(uuid4())
+
+    response = await client.patch(
+        f"/api/v1/tests/{test_id}",
+        headers=methodist1_headers,
+        json={"module_id": new_module_id},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module_id"] == new_module_id
+
+
+@pytest.mark.anyio
+async def test_update_test_deactivate(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist can deactivate and reactivate a test."""
+    test_id = await create_test(db, title="Toggle Active", is_active=True)
+
+    response = await client.patch(
+        f"/api/v1/tests/{test_id}",
+        headers=methodist1_headers,
+        json={"is_active": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+
+    response = await client.patch(
+        f"/api/v1/tests/{test_id}",
+        headers=methodist1_headers,
+        json={"is_active": True},
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is True
+
+
 # ------------------------------------------------------------------
 # DELETE /api/v1/tests/{test_id}
 # ------------------------------------------------------------------
