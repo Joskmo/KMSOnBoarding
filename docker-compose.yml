@@ -42,6 +42,8 @@ services:
       - EMAIL=${EMAIL:-admin@example.com}
     entrypoint: /bin/sh
     command: /entrypoint.sh
+    depends_on:
+      - frontend
     networks:
       - kms_internal
 

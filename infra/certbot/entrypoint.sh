@@ -8,27 +8,36 @@ WEBROOT="/var/www/certbot"
 echo "Certbot manager started for domain: $DOMAIN"
 echo "Email: $EMAIL"
 
-# Wait a bit for nginx to be ready (so webroot is accessible)
-sleep 5
-
-# Check if certificate already exists
+# Retry logic for first certificate request
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-    echo "No certificate found for $DOMAIN. Requesting new certificate..."
-    certbot certonly \
-        --webroot \
-        -w "$WEBROOT" \
-        --non-interactive \
-        --agree-tos \
-        --email "$EMAIL" \
-        -d "$DOMAIN" \
-        || echo "Certificate request failed. Will retry on next check."
+    echo "No certificate found for $DOMAIN. Will request with retries..."
+    
+    for i in 1 2 3 4 5; do
+        echo "Attempt $i/5: Requesting certificate..."
+        
+        if certbot certonly \
+            --webroot \
+            -w "$WEBROOT" \
+            --non-interactive \
+            --agree-tos \
+            --email "$EMAIL" \
+            -d "$DOMAIN"; then
+            
+            echo "Certificate obtained successfully!"
+            touch /etc/letsencrypt/.reload-nginx
+            break
+        else
+            echo "Attempt $i failed. Retrying in 15 seconds..."
+            sleep 15
+        fi
+    done
+    
+    if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
+        echo "WARNING: Failed to obtain certificate after 5 attempts."
+        echo "Will retry on next renewal cycle."
+    fi
 else
     echo "Certificate already exists for $DOMAIN"
-fi
-
-# Signal nginx to reload if we got a cert
-if [ -d "/etc/letsencrypt/live/$DOMAIN" ] && [ -f "/etc/letsencrypt/.reload-nginx" ]; then
-    echo "Triggering nginx reload..."
 fi
 
 # Auto-renewal loop
