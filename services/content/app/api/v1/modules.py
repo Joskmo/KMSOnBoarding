@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
+from app.core.permissions import can_access_module
 from app.crud import (
     assignment as assignment_crud,
     heuristic as heuristic_crud,
@@ -30,32 +31,6 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/modules", tags=["modules"])
-
-
-async def _can_access_module(
-    current_user: dict, module: Module, db: AsyncSession
-) -> bool:
-    """Check if current user can access a module."""
-    role = current_user["role"]
-    if role == "admin":
-        return True
-    if role == "methodist":
-        if str(module.author_id) == str(current_user["id"]):
-            return True
-        if module.status == "published":
-            assigned_ids = await assignment_crud.get_modules_for_user(
-                db, user_id=UUID(current_user["id"])
-            )
-            return module.id in assigned_ids
-        return False
-    if role in ("seminarist", "candidate"):
-        if module.status != "published":
-            return False
-        assigned_ids = await assignment_crud.get_modules_for_user(
-            db, user_id=UUID(current_user["id"])
-        )
-        return module.id in assigned_ids
-    return False
 
 
 def _can_modify_module(current_user: dict, module: Module) -> bool:
@@ -184,7 +159,7 @@ async def get_module(
             detail="Module not found",
         )
 
-    if not await _can_access_module(current_user, module, db):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -335,7 +310,7 @@ async def list_lessons(
             detail="Module not found",
         )
 
-    if not await _can_access_module(current_user, module, db):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -370,7 +345,7 @@ async def create_heuristic(
 
     if (
         current_user["role"] in ("seminarist", "candidate")
-        and not await _can_access_module(current_user, module, db)
+        and not await can_access_module(current_user, module, db)
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -400,7 +375,7 @@ async def list_heuristics(
             detail="Module not found",
         )
 
-    if not await _can_access_module(current_user, module, db):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
