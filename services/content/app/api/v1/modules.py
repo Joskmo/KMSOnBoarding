@@ -459,7 +459,7 @@ async def list_assignments(
             detail="Module not found",
         )
 
-    if not _can_modify_module(current_user, module):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",

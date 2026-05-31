@@ -123,3 +123,22 @@ async def test_create_assignments_methodist_assigned_forbidden(
         headers=methodist1_headers,
     )
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_list_assignments_methodist_assigned_allowed(
+    client, methodist1_headers, db
+):
+    module_id = await create_module(
+        db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
+    )
+    await assign_module(db, module_id=module_id, user_id=METHODIST_1_ID)
+
+    response = await client.get(
+        f"/api/v1/modules/{module_id}/assignments",
+        headers=methodist1_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert str(data[0]["user_id"]) == str(METHODIST_1_ID)
