@@ -52,3 +52,21 @@ class ModuleStatusUpdate(BaseModel):
     """Schema for updating module status."""
 
     status: Literal["draft", "published", "archived"]
+
+
+class ModuleAssignmentCreate(BaseModel):
+    """Schema for creating module assignments."""
+
+    user_ids: list[UUID]
+
+
+class ModuleAssignmentResponse(BaseModel):
+    """Schema for module assignment response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    module_id: UUID
+    user_id: UUID
+    assigned_by: UUID
+    created_at: datetime
