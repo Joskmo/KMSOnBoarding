@@ -70,6 +70,15 @@ async def get_active_by_user_and_test(
     return result.scalars().first()
 
 
+async def delete_by_test_id(db: AsyncSession, *, test_id: UUID) -> int:
+    """Delete all attempts for a given test. Returns deleted count."""
+    result = await db.execute(select(Attempt).where(Attempt.test_id == test_id))
+    attempts = result.scalars().all()
+    for attempt in attempts:
+        await db.delete(attempt)
+    return len(attempts)
+
+
 async def update(db: AsyncSession, *, db_obj: Attempt, obj_in: dict) -> Attempt:
     """Update an attempt."""
     for field, value in obj_in.items():

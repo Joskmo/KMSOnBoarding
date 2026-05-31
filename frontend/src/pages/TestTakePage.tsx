@@ -70,19 +70,17 @@ export function TestTakePage() {
   if (loading) return <LoadingSpinner />;
   if (error && !attemptData) return <div className="text-red-600 py-8">{error}</div>;
   if (!attemptData) return <div>Не удалось загрузить тест</div>;
-  if (attemptData.questions.length === 0) {
-    return (
-      <div className="max-w-2xl mx-auto text-center py-12">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">{attemptData.title}</h2>
-        <p className="text-gray-600 mb-8">В тесте пока нет вопросов. Попробуйте позже.</p>
-        <button
-          onClick={() => navigate('/tests')}
-          className="px-6 py-3 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-        >
-          К списку тестов
-        </button>
-      </div>
-    );
+
+  // Auto-submit for empty tests
+  if (attemptData.questions.length === 0 && !result) {
+    submitAttempt({ test_id: id!, answers: {} })
+      .then((res) => {
+        setResult({ score: res.data.score, is_passed: res.data.is_passed });
+      })
+      .catch((err: any) => {
+        setError(err.response?.data?.detail || 'Ошибка отправки ответов');
+      });
+    return <LoadingSpinner />;
   }
 
   // Result screen

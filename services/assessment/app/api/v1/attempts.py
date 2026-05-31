@@ -203,9 +203,12 @@ async def submit_attempt(
             correct_count += 1
 
     total_questions = len(test.questions)
-    score = round(correct_count / total_questions * 100) if total_questions > 0 else 0
-
-    is_passed = score >= test.pass_score
+    if total_questions == 0:
+        score = 100
+        is_passed = True
+    else:
+        score = round(correct_count / total_questions * 100)
+        is_passed = score >= test.pass_score
 
     updated = await attempt_crud.update(
         db,

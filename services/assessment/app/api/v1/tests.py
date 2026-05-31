@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
-from app.crud import question as question_crud, test as test_crud
+from app.crud import attempt as attempt_crud, question as question_crud, test as test_crud
 from app.db.models import Test
 from app.db.session import get_db
 from app.schemas import (
@@ -147,6 +147,7 @@ async def update_test(
         )
 
     update_data = test_in.model_dump(exclude_unset=True)
+    await attempt_crud.delete_by_test_id(db, test_id=test_id)
     updated = await test_crud.update(db, db_obj=test, obj_in=update_data)
     return await test_crud.get_with_questions(db, updated.id)
 
@@ -209,6 +210,7 @@ async def create_question(
     if question_data.get("order_index") is None:
         question_data["order_index"] = await question_crud.get_next_order_index(db, test_id)
 
+    await attempt_crud.delete_by_test_id(db, test_id=test_id)
     return await question_crud.create(db, obj_in=question_data)
 
 
