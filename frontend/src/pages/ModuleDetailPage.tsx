@@ -89,7 +89,7 @@ export function ModuleDetailPage() {
       const allUsers: User[] = res.data;
       let filtered: User[];
       if (hasRole(['admin'])) {
-        filtered = allUsers.filter((u) => u.role === 'candidate' || u.role === 'seminarist');
+        filtered = allUsers.filter((u) => u.role === 'candidate' || u.role === 'seminarist' || u.role === 'methodist');
       } else {
         filtered = allUsers.filter(
           (u) =>
