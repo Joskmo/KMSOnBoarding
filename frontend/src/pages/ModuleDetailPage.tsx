@@ -298,11 +298,17 @@ export function ModuleDetailPage() {
     }
     try {
       new URL(uri);
-      const response = await fetch(uri, { method: 'HEAD' });
-      if (response.ok) {
-        setR7Status({ message: 'Ссылка доступна', type: 'success' });
+    } catch {
+      setR7Status({ message: 'Не удалось проверить ссылку. Убедитесь, что URI корректен.', type: 'warning' });
+      return;
+    }
+    try {
+      const response = await contentApi.post('/lessons/validate-r7-uri', { uri: uri.trim() });
+      const data = response.data;
+      if (data.valid) {
+        setR7Status({ message: data.message, type: 'success' });
       } else {
-        setR7Status({ message: `Сервер ответил со статусом ${response.status}. Ссылка может быть недоступна.`, type: 'warning' });
+        setR7Status({ message: data.message, type: 'warning' });
       }
     } catch {
       setR7Status({ message: 'Не удалось проверить ссылку. Убедитесь, что URI корректен.', type: 'warning' });

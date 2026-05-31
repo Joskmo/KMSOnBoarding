@@ -459,3 +459,123 @@ async def test_delete_lesson_forbidden(client, methodist1_headers, db):
         headers=methodist1_headers,
     )
     assert response.status_code == 403
+
+
+# ------------------------------------------------------------------
+# POST /lessons/validate-r7-uri
+# ------------------------------------------------------------------
+
+from unittest.mock import AsyncMock, patch
+
+
+@pytest.mark.asyncio
+async def test_validate_r7_uri_success(client, admin_headers):
+    with patch("app.api.v1.lessons.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_client.head = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+
+        response = await client.post(
+            "/api/v1/lessons/validate-r7-uri",
+            json={"uri": "https://cddisk.r7.ru/doc.html?uid=123"},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is True
+        assert data["message"] == "Ссылка доступна"
+        assert data["status_code"] == 200
+
+
+@pytest.mark.asyncio
+async def test_validate_r7_uri_forbidden(client, admin_headers):
+    with patch("app.api.v1.lessons.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_response = AsyncMock()
+        mock_response.status_code = 403
+        mock_client.head = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+
+        response = await client.post(
+            "/api/v1/lessons/validate-r7-uri",
+            json={"uri": "https://cddisk.r7.ru/doc.html?uid=123"},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is True
+        assert "требует авторизации" in data["message"]
+        assert data["status_code"] == 403
+
+
+@pytest.mark.asyncio
+async def test_validate_r7_uri_not_found(client, admin_headers):
+    with patch("app.api.v1.lessons.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_response = AsyncMock()
+        mock_response.status_code = 404
+        mock_client.head = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+
+        response = await client.post(
+            "/api/v1/lessons/validate-r7-uri",
+            json={"uri": "https://cddisk.r7.ru/doc.html?uid=123"},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is False
+        assert "404" in data["message"]
+        assert data["status_code"] == 404
+
+
+@pytest.mark.asyncio
+async def test_validate_r7_uri_timeout(client, admin_headers):
+    with patch("app.api.v1.lessons.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        import httpx
+
+        mock_client.head = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
+        mock_cls.return_value = mock_client
+
+        response = await client.post(
+            "/api/v1/lessons/validate-r7-uri",
+            json={"uri": "https://cddisk.r7.ru/doc.html?uid=123"},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is False
+        assert "время ожидания" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_validate_r7_uri_invalid_format(client, admin_headers):
+    response = await client.post(
+        "/api/v1/lessons/validate-r7-uri",
+        json={"uri": "not-a-url"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is False
+    assert "Некорректный формат" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_validate_r7_uri_unauthorized(client):
+    response = await client.post(
+        "/api/v1/lessons/validate-r7-uri",
+        json={"uri": "https://example.com"},
+    )
+    assert response.status_code == 401
