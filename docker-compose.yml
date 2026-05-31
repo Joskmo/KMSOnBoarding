@@ -2,8 +2,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api/v1
     ports:
@@ -36,14 +36,25 @@ services:
     volumes:
       - certbot-data:/etc/letsencrypt
       - certbot-www:/var/www/certbot
+      - ./infra/certbot/entrypoint.sh:/entrypoint.sh:ro
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - EMAIL=${EMAIL:-admin@example.com}
     entrypoint: /bin/sh
-    command: >
-      -c "
-        while :; do
-          certbot renew --quiet --webroot -w /var/www/certbot --deploy-hook 'touch /etc/letsencrypt/.reload-nginx' || true;
-          sleep 12h;
-        done
-      "
+    command: /entrypoint.sh
+    networks:
+      - kms_internal
+
+  migrate-auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      - DATABASE_URL=${AUTH_DATABASE_URL}
+    depends_on:
+      db_auth:
+        condition: service_healthy
     networks:
       - kms_internal
 
@@ -58,8 +69,23 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
     depends_on:
-      - db_auth
-      - redis
+      migrate-auth:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    networks:
+      - kms_internal
+
+  migrate-content:
+    build:
+      context: ./services/content
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      - DATABASE_URL=${CONTENT_DATABASE_URL}
+    depends_on:
+      db_content:
+        condition: service_healthy
     networks:
       - kms_internal
 
@@ -70,7 +96,21 @@ services:
     environment:
       - DATABASE_URL=${CONTENT_DATABASE_URL}
     depends_on:
-      - db_content
+      migrate-content:
+        condition: service_completed_successfully
+    networks:
+      - kms_internal
+
+  migrate-assessment:
+    build:
+      context: ./services/assessment
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
+    depends_on:
+      db_assessment:
+        condition: service_healthy
     networks:
       - kms_internal
 
@@ -81,7 +121,8 @@ services:
     environment:
       - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
     depends_on:
-      - db_assessment
+      migrate-assessment:
+        condition: service_completed_successfully
     networks:
       - kms_internal
 
@@ -93,6 +134,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_auth_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - kms_internal
 
@@ -104,6 +151,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_content_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - kms_internal
 
@@ -115,6 +168,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_assessment_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - kms_internal
 
