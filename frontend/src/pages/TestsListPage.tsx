@@ -47,11 +47,9 @@ export function TestsListPage() {
         console.error('Failed to load modules', err);
       }
     };
-    if (isManager) {
-      fetchModules();
-    }
+    fetchModules();
     fetchTests();
-  }, [page, moduleFilter, isManager, fetchTests]);
+  }, [page, moduleFilter, fetchTests]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Удалить тест?')) return;
@@ -67,18 +65,21 @@ export function TestsListPage() {
 
   // --- Seminarist / Candidate view ---
   if (isTestTaker && !isManager) {
+    const accessibleModuleIds = new Set(modules.map((m) => m.id));
+    const accessibleTests = tests.filter((t) => accessibleModuleIds.has(t.module_id));
+
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6">Доступные тесты</h1>
         {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
         {loading ? <LoadingSpinner /> : (
           <>
-            {tests.length === 0 ? (
+            {accessibleTests.length === 0 ? (
               <div className="text-center py-8 text-gray-500">Нет доступных тестов</div>
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {tests.map((test) => (
+                  {accessibleTests.map((test) => (
                     <div key={test.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
                       <h3 className="text-lg font-semibold">{test.title}</h3>
                       <p className="text-gray-600 mt-1 text-sm">{test.description}</p>
@@ -95,7 +96,7 @@ export function TestsListPage() {
                     </div>
                   ))}
                 </div>
-                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+                <Pagination page={page} totalPages={Math.ceil(accessibleTests.length / size)} onPageChange={setPage} />
               </>
             )}
           </>
