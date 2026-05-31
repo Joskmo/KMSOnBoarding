@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
     COOKIE_SECURE: bool = False
+    API_GATEWAY_URL: str = "http://localhost:80"
 
     model_config = SettingsConfigDict(
         env_file=str(_ROOT_DIR / ".env"),
