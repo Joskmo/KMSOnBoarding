@@ -10,6 +10,7 @@ from tests.conftest import (
     METHODIST_1_ID,
     METHODIST_2_ID,
     SEMINARIST_ID,
+    assign_module,
     create_heuristic,
     create_module,
 )
@@ -38,6 +39,7 @@ async def test_create_heuristic_seminarist_published(client, seminarist_headers,
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
+    await assign_module(db, module_id=module_id, user_id=SEMINARIST_ID)
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "Seminarist FAQ"},
@@ -55,6 +57,7 @@ async def test_create_heuristic_candidate_published(client, candidate_headers, d
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
+    await assign_module(db, module_id=module_id, user_id=CANDIDATE_ID)
     response = await client.post(
         f"/api/v1/modules/{module_id}/heuristics",
         json={"content": "Candidate FAQ"},
@@ -189,6 +192,7 @@ async def test_list_heuristics_seminarist_own_unapproved_visible(client, seminar
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
+    await assign_module(db, module_id=module_id, user_id=SEMINARIST_ID)
     await create_heuristic(db, module_id, content="Own", author_id=SEMINARIST_ID, is_approved=False)
     await create_heuristic(
         db, module_id, content="Other", author_id=CANDIDATE_ID, is_approved=False
