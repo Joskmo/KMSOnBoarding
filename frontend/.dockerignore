@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+Dockerfile.dev
+.dockerignore
+
+# Cache
+.eslintcache
+
+# OS
+.DS_Store
+Thumbs.db
