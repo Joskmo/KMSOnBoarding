@@ -16,7 +16,7 @@ export function TestEditPage() {
   const navigate = useNavigate();
   const [test, setTest] = useState<Test | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [tab, setTab] = useState<Tab>('general');
+  const [tab, setTab] = useState<Tab>('questions');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
