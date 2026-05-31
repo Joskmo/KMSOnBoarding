@@ -226,4 +226,32 @@ async def delete_user(
 
     await db.delete(user)
     await db.commit()
+
+    # Cleanup module assignments in content service
+    import logging
+    from datetime import timedelta
+    from uuid import uuid4
+
+    import httpx
+
+    from app.core.config import get_settings
+    from app.core.security import create_access_token
+
+    settings = get_settings()
+    try:
+        access_token = create_access_token(
+            data={"sub": str(current_user.id), "jti": str(uuid4())},
+            role=current_user.role,
+            expires_delta=timedelta(minutes=5),
+        )
+        async with httpx.AsyncClient() as client:
+            await client.delete(
+                f"{settings.API_GATEWAY_URL}/api/v1/module-assignments/user/{user_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Failed to cleanup module assignments for user %s", user_id, exc_info=True
+        )
+
     return None
