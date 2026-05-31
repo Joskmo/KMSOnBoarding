@@ -53,7 +53,7 @@ async def _enrich_lesson_counts(db: AsyncSession, modules: list[Module]) -> None
         .where(Lesson.module_id.in_(module_ids))
         .group_by(Lesson.module_id)
     )
-    counts = {mid: count for mid, count in result.all()}
+    counts = dict(result.all())
     for m in modules:
         m.lesson_count = counts.get(m.id, 0)
 
@@ -343,9 +343,8 @@ async def create_heuristic(
             detail="Module not found",
         )
 
-    if (
-        current_user["role"] in ("seminarist", "candidate")
-        and not await can_access_module(current_user, module, db)
+    if current_user["role"] in ("seminarist", "candidate") and not await can_access_module(
+        current_user, module, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -24,11 +24,7 @@ async def create_assignments(
             )
         )
         if existing.scalar_one_or_none() is None:
-            db.add(
-                ModuleAssignment(
-                    module_id=module_id, user_id=uid, assigned_by=assigned_by
-                )
-            )
+            db.add(ModuleAssignment(module_id=module_id, user_id=uid, assigned_by=assigned_by))
     await db.commit()
 
     result = await db.execute(
@@ -40,9 +36,7 @@ async def create_assignments(
     return list(result.scalars().all())
 
 
-async def delete_assignment(
-    db: AsyncSession, *, module_id: UUID, user_id: UUID
-) -> None:
+async def delete_assignment(db: AsyncSession, *, module_id: UUID, user_id: UUID) -> None:
     """Delete a single module assignment."""
     await db.execute(
         delete(ModuleAssignment).where(
@@ -53,9 +47,7 @@ async def delete_assignment(
     await db.commit()
 
 
-async def get_by_module(
-    db: AsyncSession, *, module_id: UUID
-) -> list[ModuleAssignment]:
+async def get_by_module(db: AsyncSession, *, module_id: UUID) -> list[ModuleAssignment]:
     """Get all assignments for a module."""
     result = await db.execute(
         select(ModuleAssignment).where(ModuleAssignment.module_id == module_id)
@@ -63,9 +55,7 @@ async def get_by_module(
     return list(result.scalars().all())
 
 
-async def get_modules_for_user(
-    db: AsyncSession, *, user_id: UUID
-) -> list[UUID]:
+async def get_modules_for_user(db: AsyncSession, *, user_id: UUID) -> list[UUID]:
     """Return module IDs assigned to a user."""
     result = await db.execute(
         select(ModuleAssignment.module_id).where(ModuleAssignment.user_id == user_id)
@@ -75,7 +65,5 @@ async def get_modules_for_user(
 
 async def delete_by_user(db: AsyncSession, *, user_id: UUID) -> None:
     """Delete all assignments for a user (cleanup hook)."""
-    await db.execute(
-        delete(ModuleAssignment).where(ModuleAssignment.user_id == user_id)
-    )
+    await db.execute(delete(ModuleAssignment).where(ModuleAssignment.user_id == user_id))
     await db.commit()

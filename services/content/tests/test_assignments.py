@@ -1,6 +1,5 @@
 """Tests for module assignment endpoints."""
 
-
 import pytest
 
 from tests.conftest import (
@@ -51,9 +50,7 @@ async def test_create_assignments_methodist_own(client, methodist1_headers, db):
 
 
 @pytest.mark.asyncio
-async def test_create_assignments_methodist_other_forbidden(
-    client, methodist1_headers, db
-):
+async def test_create_assignments_methodist_other_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -67,9 +64,7 @@ async def test_create_assignments_methodist_other_forbidden(
 
 @pytest.mark.asyncio
 async def test_create_assignments_draft_module(client, admin_headers, db):
-    module_id = await create_module(
-        db, status="draft", author_id=ADMIN_ID, manager_id=ADMIN_ID
-    )
+    module_id = await create_module(db, status="draft", author_id=ADMIN_ID, manager_id=ADMIN_ID)
     response = await client.post(
         f"/api/v1/modules/{module_id}/assignments",
         json={"user_ids": [str(SEMINARIST_ID)]},
@@ -80,9 +75,7 @@ async def test_create_assignments_draft_module(client, admin_headers, db):
 
 @pytest.mark.asyncio
 async def test_create_assignments_idempotent(client, admin_headers, db):
-    module_id = await create_module(
-        db, status="published", author_id=ADMIN_ID, manager_id=ADMIN_ID
-    )
+    module_id = await create_module(db, status="published", author_id=ADMIN_ID, manager_id=ADMIN_ID)
     # First call
     response = await client.post(
         f"/api/v1/modules/{module_id}/assignments",

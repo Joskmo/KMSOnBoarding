@@ -14,7 +14,7 @@ from tests.conftest import (
 async def test_list_modules_methodist_sees_own_and_assigned(
     client, methodist1_headers, methodist2_headers, db
 ):
-    own_id = await create_module(
+    await create_module(
         db, title="Own", status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
     other_id = await create_module(
@@ -32,39 +32,29 @@ async def test_list_modules_methodist_sees_own_and_assigned(
 
 
 @pytest.mark.asyncio
-async def test_get_module_methodist_assigned_published(
-    client, methodist1_headers, db
-):
+async def test_get_module_methodist_assigned_published(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     await assign_module(db, module_id=module_id, user_id=METHODIST_1_ID)
 
-    response = await client.get(
-        f"/api/v1/modules/{module_id}", headers=methodist1_headers
-    )
+    response = await client.get(f"/api/v1/modules/{module_id}", headers=methodist1_headers)
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_list_lessons_methodist_assigned(
-    client, methodist1_headers, db
-):
+async def test_list_lessons_methodist_assigned(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     await assign_module(db, module_id=module_id, user_id=METHODIST_1_ID)
 
-    response = await client.get(
-        f"/api/v1/modules/{module_id}/lessons", headers=methodist1_headers
-    )
+    response = await client.get(f"/api/v1/modules/{module_id}/lessons", headers=methodist1_headers)
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_list_heuristics_methodist_assigned(
-    client, methodist1_headers, db
-):
+async def test_list_heuristics_methodist_assigned(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -77,9 +67,7 @@ async def test_list_heuristics_methodist_assigned(
 
 
 @pytest.mark.asyncio
-async def test_patch_module_methodist_assigned_forbidden(
-    client, methodist1_headers, db
-):
+async def test_patch_module_methodist_assigned_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -94,24 +82,18 @@ async def test_patch_module_methodist_assigned_forbidden(
 
 
 @pytest.mark.asyncio
-async def test_delete_module_methodist_assigned_forbidden(
-    client, methodist1_headers, db
-):
+async def test_delete_module_methodist_assigned_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="draft", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
     await assign_module(db, module_id=module_id, user_id=METHODIST_1_ID)
 
-    response = await client.delete(
-        f"/api/v1/modules/{module_id}", headers=methodist1_headers
-    )
+    response = await client.delete(f"/api/v1/modules/{module_id}", headers=methodist1_headers)
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_create_assignments_methodist_assigned_forbidden(
-    client, methodist1_headers, db
-):
+async def test_create_assignments_methodist_assigned_forbidden(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )
@@ -126,9 +108,7 @@ async def test_create_assignments_methodist_assigned_forbidden(
 
 
 @pytest.mark.asyncio
-async def test_list_assignments_methodist_assigned_allowed(
-    client, methodist1_headers, db
-):
+async def test_list_assignments_methodist_assigned_allowed(client, methodist1_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_2_ID, manager_id=METHODIST_2_ID
     )

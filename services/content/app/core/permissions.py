@@ -8,9 +8,7 @@ from app.crud import assignment as assignment_crud
 from app.db.models import Module
 
 
-async def can_access_module(
-    current_user: dict, module: Module, db: AsyncSession
-) -> bool:
+async def can_access_module(current_user: dict, module: Module, db: AsyncSession) -> bool:
     """Check if current user can access a module."""
     role = current_user["role"]
     if role == "admin":
