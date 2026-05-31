@@ -19,6 +19,7 @@ from app.schemas import InvitationCreate, InvitationResponse
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
 
+@router.post("", response_model=InvitationResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=InvitationResponse, status_code=status.HTTP_201_CREATED)
 async def create_invitation(
     invitation_data: InvitationCreate,
@@ -114,6 +115,7 @@ async def create_invitation(
     return invitation
 
 
+@router.get("", response_model=list[InvitationResponse])
 @router.get("/", response_model=list[InvitationResponse])
 async def list_invitations(
     db: AsyncSession = Depends(get_db),
