@@ -27,7 +27,7 @@ def _can_access_test(current_user: dict, test: Test) -> bool:
     if role == "admin":
         return True
     if role == "methodist":
-        return str(test.author_id) == str(current_user["id"])
+        return True
     if role in ("seminarist", "candidate"):
         return test.is_active and str(test.manager_id) == str(current_user["manager_id"])
     return False
@@ -74,7 +74,7 @@ async def list_tests(
         manager_id = None
         is_active = None
     elif role == "methodist":
-        author_id = current_user["id"]
+        author_id = None if module_id is not None else current_user["id"]
         manager_id = None
         is_active = None
     else:

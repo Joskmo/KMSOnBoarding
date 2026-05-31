@@ -120,6 +120,48 @@ async def test_list_tests_seminarist(
 
 
 @pytest.mark.anyio
+async def test_list_tests_methodist_with_module_id(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    methodist2_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist sees all tests for a specific module_id."""
+    module_id = uuid4()
+    await create_test(db, title="Test 1", module_id=module_id)
+    await create_test(db, title="Test 2", module_id=module_id, is_active=False)
+
+    response = await client.get(
+        f"/api/v1/tests?module_id={module_id}",
+        headers=methodist2_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    titles = {item["title"] for item in data["items"]}
+    assert titles == {"Test 1", "Test 2"}
+
+
+@pytest.mark.anyio
+async def test_list_tests_methodist_without_module_id(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    methodist2_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist sees only own tests when no module_id is provided."""
+    await create_test(db, title="Own Test")
+
+    response = await client.get(
+        "/api/v1/tests",
+        headers=methodist2_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+
+
+@pytest.mark.anyio
 async def test_list_tests_unauthorized(client: AsyncClient) -> None:
     """Listing tests without token returns 401."""
     response = await client.get("/api/v1/tests")
@@ -266,20 +308,22 @@ async def test_get_test_not_found(
 
 
 @pytest.mark.anyio
-async def test_get_test_forbidden(
+async def test_get_test_other_methodist_allowed(
     client: AsyncClient,
     methodist1_headers: dict,
     methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
-    """Methodist cannot get another methodist's test."""
+    """Methodist can read another methodist's test (read-only)."""
     test_id = await create_test(db, title="Other Test")
 
     response = await client.get(
         f"/api/v1/tests/{test_id}",
         headers=methodist2_headers,
     )
-    assert response.status_code == 403
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Other Test"
 
 
 @pytest.mark.anyio
