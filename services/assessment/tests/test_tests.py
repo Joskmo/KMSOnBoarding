@@ -147,13 +147,13 @@ async def test_list_tests_admin(
 
 
 @pytest.mark.anyio
-async def test_list_tests_candidate_other_manager(
+async def test_list_tests_candidate_inactive_hidden(
     client: AsyncClient,
     candidate_headers: dict,
     db: AsyncSession,
 ) -> None:
-    """Candidate does not see tests of another manager."""
-    await create_test(db, title="Other Manager", is_active=True, manager_id=METHODIST_2_ID)
+    """Candidate does not see inactive tests."""
+    await create_test(db, title="Inactive Test", is_active=False)
 
     response = await client.get(
         "/api/v1/tests",
@@ -162,6 +162,25 @@ async def test_list_tests_candidate_other_manager(
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 0
+
+
+@pytest.mark.anyio
+async def test_list_tests_candidate_sees_all_active(
+    client: AsyncClient,
+    candidate_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Candidate sees all active tests regardless of manager."""
+    await create_test(db, title="Active Test", is_active=True, manager_id=METHODIST_2_ID)
+
+    response = await client.get(
+        "/api/v1/tests",
+        headers=candidate_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Active Test"
 
 
 # ------------------------------------------------------------------

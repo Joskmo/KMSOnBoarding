@@ -30,7 +30,7 @@ def _can_access_test(current_user: dict, test: Test) -> bool:
     if role == "methodist":
         return str(test.author_id) == str(current_user["id"])
     if role in ("seminarist", "candidate"):
-        return test.is_active and str(test.manager_id) == str(current_user["manager_id"])
+        return test.is_active
     return False
 
 

@@ -78,9 +78,9 @@ async def list_tests(
         manager_id = None
         is_active = None
     else:
-        # seminarist/candidate: only active tests of their manager
+        # seminarist/candidate: all active tests (frontend filters by accessible modules)
         author_id = None
-        manager_id = current_user["manager_id"]
+        manager_id = None
         is_active = True
 
     skip = (page - 1) * size
