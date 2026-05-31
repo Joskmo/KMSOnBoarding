@@ -49,9 +49,13 @@ services:
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_content:5432/kms_content
+      - SECRET_KEY=${SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       db_content:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - kms_internal
 

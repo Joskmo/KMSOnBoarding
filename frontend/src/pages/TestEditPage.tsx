@@ -38,7 +38,7 @@ export function TestEditPage() {
       const [testRes, qRes, modRes] = await Promise.all([
         getTest(id!),
         getQuestions(id!),
-        contentApi.get('/modules?status=published&size=100'),
+        contentApi.get('/modules?size=100'),
       ]);
       const t = testRes.data;
       setTest(t);
