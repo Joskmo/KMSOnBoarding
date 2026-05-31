@@ -34,12 +34,10 @@ export function TestAttemptsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Результаты по тесту</h1>
-        <Link to="/tests" className="text-indigo-600 hover:underline">
-          ← К списку тестов
-        </Link>
-      </div>
+      <Link to="/tests" className="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
+        ← К списку тестов
+      </Link>
+      <h1 className="text-2xl font-bold mb-6">Результаты по тесту</h1>
 
       {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
 
