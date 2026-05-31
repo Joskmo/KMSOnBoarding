@@ -4,6 +4,17 @@ import { contentApi } from '../api/client';
 import { createTest } from '../api/assessment';
 import type { Module } from '../types';
 
+const moduleStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    published: 'Опубликован',
+    draft: 'Черновик',
+    archived: 'В архиве',
+  };
+  return labels[status] || status;
+};
+
+
+
 export function TestCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -30,6 +41,8 @@ export function TestCreatePage() {
       setError('Не удалось загрузить список модулей');
     }
   };
+
+  const selectedModule = modules.find((m) => m.id === moduleId);
 
   const validate = () => {
     const errors: Record<string, string> = {};
@@ -89,16 +102,44 @@ export function TestCreatePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Модуль *</label>
-          <select
-            value={moduleId}
-            onChange={(e) => setModuleId(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-          >
-            <option value="">Выберите модуль</option>
-            {modules.map((m) => (
-              <option key={m.id} value={m.id}>{m.title}</option>
-            ))}
-          </select>
+          <div className="mt-1 flex items-center gap-2">
+            <select
+              value={moduleId}
+              onChange={(e) => setModuleId(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Выберите модуль</option>
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title} — {moduleStatusLabel(m.status)}
+                </option>
+              ))}
+            </select>
+            {selectedModule && (
+              <a
+                href={`/modules/${selectedModule.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Открыть модуль в новой вкладке"
+                className="shrink-0 px-3 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded border border-gray-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-4.5L21 3m0 0h-5.25M21 3v5.25"
+                  />
+                </svg>
+              </a>
+            )}
+          </div>
           {fieldErrors.module_id && <p className="text-red-600 text-sm mt-1">{fieldErrors.module_id}</p>}
         </div>
 
