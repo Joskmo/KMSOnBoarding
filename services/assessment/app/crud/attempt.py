@@ -4,13 +4,16 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Attempt
 
 
 async def get(db: AsyncSession, attempt_id: UUID) -> Attempt | None:
     """Get an attempt by ID."""
-    result = await db.execute(select(Attempt).where(Attempt.id == attempt_id))
+    result = await db.execute(
+        select(Attempt).options(selectinload(Attempt.test)).where(Attempt.id == attempt_id)
+    )
     return result.scalar_one_or_none()
 
 
@@ -24,7 +27,7 @@ async def get_multi(
     manager_id: UUID | None = None,
 ) -> tuple[list[Attempt], int]:
     """Get multiple attempts with optional filtering and total count."""
-    query = select(Attempt)
+    query = select(Attempt).options(selectinload(Attempt.test))
     count_query = select(func.count(Attempt.id))
 
     if test_id is not None:

@@ -142,6 +142,8 @@ export interface Attempt {
 export interface AttemptListItem {
   id: string;
   test_id: string;
+  test_title: string;
+  module_id: string | null;
   user_id: string;
   manager_id: string;
   score: number;

@@ -11,13 +11,13 @@ import {
   assignModule,
   unassignModule,
 } from '../api/content';
-import { getTests } from '../api/assessment';
+import { getTests, getMyAttempts } from '../api/assessment';
 import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { RoleGuard } from '../components/RoleGuard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import MarkdownEditor from '../components/MarkdownEditor';
-import type { Module, Lesson, Heuristic, ModuleAssignment, User } from '../types';
+import type { Module, Lesson, Heuristic, ModuleAssignment, User, AttemptListItem } from '../types';
 import type { Test } from '../types';
 
 export function ModuleDetailPage() {
@@ -29,6 +29,7 @@ export function ModuleDetailPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [heuristics, setHeuristics] = useState<Heuristic[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
+  const [myAttempts, setMyAttempts] = useState<AttemptListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -160,16 +161,18 @@ export function ModuleDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [modRes, lessonsRes, heurRes, testsRes] = await Promise.all([
+      const [modRes, lessonsRes, heurRes, testsRes, attemptsRes] = await Promise.all([
         contentApi.get(`/modules/${id}`),
         contentApi.get(`/modules/${id}/lessons`),
         contentApi.get(`/modules/${id}/heuristics`),
         getTests({ module_id: id, size: 100 }),
+        getMyAttempts({ size: 100 }),
       ]);
       setModule(modRes.data);
       setLessons(lessonsRes.data);
       setHeuristics(heurRes.data);
       setTests(testsRes.data.items || []);
+      setMyAttempts(attemptsRes.data.items || []);
       if (hasRole(['admin', 'methodist'])) {
         fetchAssignments();
         try {
@@ -800,45 +803,63 @@ export function ModuleDetailPage() {
           <p className="text-gray-500 text-sm">Нет тестов для этого модуля</p>
         ) : (
           <div className="space-y-4">
-            {tests.map((test) => (
-              <div key={test.id} className="bg-white p-4 rounded shadow flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{test.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Вопросов: {test.question_count} | Проходной: {test.pass_score}%
-                  </p>
-                  <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${test.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {test.is_active ? 'Активен' : 'Неактивен'}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  {hasRole(['admin', 'methodist']) && canManage && (
-                    <>
+            {tests.map((test) => {
+              const testAttempts = myAttempts.filter((a) => a.test_id === test.id);
+              const bestAttempt = testAttempts.length > 0
+                ? testAttempts.reduce((best, a) => (a.score > best.score ? a : best))
+                : null;
+              return (
+                <div key={test.id} className="bg-white p-4 rounded shadow flex justify-between items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{test.title}</h3>
+                      {bestAttempt?.is_passed && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs font-medium">
+                          Пройден ({bestAttempt.score}%)
+                        </span>
+                      )}
+                      {bestAttempt && !bestAttempt.is_passed && (
+                        <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded text-xs font-medium">
+                          Не пройден ({bestAttempt.score}%)
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Вопросов: {test.question_count} | Проходной: {test.pass_score}%
+                    </p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${test.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {test.is_active ? 'Активен' : 'Неактивен'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {hasRole(['admin', 'methodist']) && canManage && (
+                      <>
+                        <button
+                          onClick={() => navigate(`/tests/${test.id}/edit`)}
+                          className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-600 rounded hover:bg-indigo-50"
+                        >
+                          Редактировать
+                        </button>
+                        <button
+                          onClick={() => navigate(`/tests/${test.id}/attempts`)}
+                          className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Результаты
+                        </button>
+                      </>
+                    )}
+                    {hasRole(['methodist', 'seminarist', 'candidate']) && test.is_active && (
                       <button
-                        onClick={() => navigate(`/tests/${test.id}/edit`)}
-                        className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-600 rounded hover:bg-indigo-50"
+                        onClick={() => navigate(`/tests/${test.id}/take`)}
+                        className={`px-3 py-1.5 text-sm rounded ${bestAttempt?.is_passed ? 'border border-indigo-600 text-indigo-600 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
                       >
-                        Редактировать
+                        {bestAttempt?.is_passed ? 'Пройти снова' : (bestAttempt ? 'Повторить' : 'Пройти тест')}
                       </button>
-                      <button
-                        onClick={() => navigate(`/tests/${test.id}/attempts`)}
-                        className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
-                      >
-                        Результаты
-                      </button>
-                    </>
-                  )}
-                  {hasRole(['methodist', 'seminarist', 'candidate']) && test.is_active && (
-                    <button
-                      onClick={() => navigate(`/tests/${test.id}/take`)}
-                      className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                    >
-                      Пройти тест
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
