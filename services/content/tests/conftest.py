@@ -150,7 +150,12 @@ def candidate_headers() -> dict:
 # ------------------------------------------------------------------
 
 
-from app.crud import assignment as assignment_crud, heuristic as heuristic_crud, lesson as lesson_crud, module as module_crud
+from app.crud import (
+    assignment as assignment_crud,
+    heuristic as heuristic_crud,
+    lesson as lesson_crud,
+    module as module_crud,
+)
 
 
 async def create_module(

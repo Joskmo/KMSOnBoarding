@@ -1,6 +1,5 @@
 """Tests for module assignment endpoints."""
 
-from uuid import uuid4
 
 import pytest
 
