@@ -6,8 +6,11 @@ import pytest
 
 from tests.conftest import (
     ADMIN_ID,
+    CANDIDATE_ID,
     METHODIST_1_ID,
     METHODIST_2_ID,
+    SEMINARIST_ID,
+    assign_module,
     create_module,
 )
 
@@ -116,13 +119,16 @@ async def test_list_modules_seminarist_candidate_only_published(
     await create_module(
         db, title="Draft", status="draft", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
-    await create_module(
+    published_id = await create_module(
         db,
         title="Published",
         status="published",
         author_id=METHODIST_1_ID,
         manager_id=METHODIST_1_ID,
     )
+
+    await assign_module(db, module_id=published_id, user_id=SEMINARIST_ID)
+    await assign_module(db, module_id=published_id, user_id=CANDIDATE_ID)
 
     for token in [seminarist_headers, candidate_headers]:
         response = await client.get(
@@ -226,6 +232,7 @@ async def test_get_module_seminarist_published(client, seminarist_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
+    await assign_module(db, module_id=module_id, user_id=SEMINARIST_ID)
     response = await client.get(
         f"/api/v1/modules/{module_id}",
         headers=seminarist_headers,
@@ -262,6 +269,7 @@ async def test_get_module_candidate_published(client, candidate_headers, db):
     module_id = await create_module(
         db, status="published", author_id=METHODIST_1_ID, manager_id=METHODIST_1_ID
     )
+    await assign_module(db, module_id=module_id, user_id=CANDIDATE_ID)
     response = await client.get(
         f"/api/v1/modules/{module_id}",
         headers=candidate_headers,

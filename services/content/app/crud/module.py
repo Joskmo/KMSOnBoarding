@@ -22,6 +22,7 @@ async def get_multi(
     status: str | None = None,
     author_id: UUID | None = None,
     manager_id: UUID | None = None,
+    module_ids: list[UUID] | None = None,
 ) -> tuple[list[Module], int]:
     """Get multiple modules with optional filtering and total count."""
     query = select(Module)
@@ -36,6 +37,43 @@ async def get_multi(
     if manager_id:
         query = query.where(Module.manager_id == manager_id)
         count_query = count_query.where(Module.manager_id == manager_id)
+    if module_ids is not None:
+        query = query.where(Module.id.in_(module_ids))
+        count_query = count_query.where(Module.id.in_(module_ids))
+
+    query = query.offset(skip).limit(limit)
+
+    result = await db.execute(query)
+    count_result = await db.execute(count_query)
+
+    return list(result.scalars().all()), count_result.scalar_one()
+
+
+async def get_multi_for_methodist(
+    db: AsyncSession,
+    *,
+    skip: int = 0,
+    limit: int = 100,
+    status: str | None = None,
+    author_id: UUID,
+    assigned_ids: list[UUID],
+) -> tuple[list[Module], int]:
+    """Get modules for a methodist: own + assigned."""
+    from sqlalchemy import or_
+
+    query = select(Module)
+    count_query = select(func.count(Module.id))
+
+    or_condition = or_(
+        Module.author_id == author_id,
+        Module.id.in_(assigned_ids) if assigned_ids else False,
+    )
+    query = query.where(or_condition)
+    count_query = count_query.where(or_condition)
+
+    if status:
+        query = query.where(Module.status == status)
+        count_query = count_query.where(Module.status == status)
 
     query = query.offset(skip).limit(limit)
 

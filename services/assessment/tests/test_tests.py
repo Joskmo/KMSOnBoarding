@@ -120,6 +120,48 @@ async def test_list_tests_seminarist(
 
 
 @pytest.mark.anyio
+async def test_list_tests_methodist_with_module_id(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    methodist2_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist sees all tests for a specific module_id."""
+    module_id = uuid4()
+    await create_test(db, title="Test 1", module_id=module_id)
+    await create_test(db, title="Test 2", module_id=module_id, is_active=False)
+
+    response = await client.get(
+        f"/api/v1/tests?module_id={module_id}",
+        headers=methodist2_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    titles = {item["title"] for item in data["items"]}
+    assert titles == {"Test 1", "Test 2"}
+
+
+@pytest.mark.anyio
+async def test_list_tests_methodist_without_module_id(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    methodist2_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist sees only own tests when no module_id is provided."""
+    await create_test(db, title="Own Test")
+
+    response = await client.get(
+        "/api/v1/tests",
+        headers=methodist2_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+
+
+@pytest.mark.anyio
 async def test_list_tests_unauthorized(client: AsyncClient) -> None:
     """Listing tests without token returns 401."""
     response = await client.get("/api/v1/tests")
@@ -147,13 +189,13 @@ async def test_list_tests_admin(
 
 
 @pytest.mark.anyio
-async def test_list_tests_candidate_other_manager(
+async def test_list_tests_candidate_inactive_hidden(
     client: AsyncClient,
     candidate_headers: dict,
     db: AsyncSession,
 ) -> None:
-    """Candidate does not see tests of another manager."""
-    await create_test(db, title="Other Manager", is_active=True, manager_id=METHODIST_2_ID)
+    """Candidate does not see inactive tests."""
+    await create_test(db, title="Inactive Test", is_active=False)
 
     response = await client.get(
         "/api/v1/tests",
@@ -162,6 +204,25 @@ async def test_list_tests_candidate_other_manager(
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 0
+
+
+@pytest.mark.anyio
+async def test_list_tests_candidate_sees_all_active(
+    client: AsyncClient,
+    candidate_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Candidate sees all active tests regardless of manager."""
+    await create_test(db, title="Active Test", is_active=True, manager_id=METHODIST_2_ID)
+
+    response = await client.get(
+        "/api/v1/tests",
+        headers=candidate_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["title"] == "Active Test"
 
 
 # ------------------------------------------------------------------
@@ -247,20 +308,22 @@ async def test_get_test_not_found(
 
 
 @pytest.mark.anyio
-async def test_get_test_forbidden(
+async def test_get_test_other_methodist_allowed(
     client: AsyncClient,
     methodist1_headers: dict,
     methodist2_headers: dict,
     db: AsyncSession,
 ) -> None:
-    """Methodist cannot get another methodist's test."""
+    """Methodist can read another methodist's test (read-only)."""
     test_id = await create_test(db, title="Other Test")
 
     response = await client.get(
         f"/api/v1/tests/{test_id}",
         headers=methodist2_headers,
     )
-    assert response.status_code == 403
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Other Test"
 
 
 @pytest.mark.anyio
@@ -400,6 +463,52 @@ async def test_update_test_pass_score_out_of_range(
         json={"pass_score": -1},
     )
     assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_update_test_module_id(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist can change test module_id."""
+    test_id = await create_test(db, title="Module Change")
+    new_module_id = str(uuid4())
+
+    response = await client.patch(
+        f"/api/v1/tests/{test_id}",
+        headers=methodist1_headers,
+        json={"module_id": new_module_id},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module_id"] == new_module_id
+
+
+@pytest.mark.anyio
+async def test_update_test_deactivate(
+    client: AsyncClient,
+    methodist1_headers: dict,
+    db: AsyncSession,
+) -> None:
+    """Methodist can deactivate and reactivate a test."""
+    test_id = await create_test(db, title="Toggle Active", is_active=True)
+
+    response = await client.patch(
+        f"/api/v1/tests/{test_id}",
+        headers=methodist1_headers,
+        json={"is_active": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+
+    response = await client.patch(
+        f"/api/v1/tests/{test_id}",
+        headers=methodist1_headers,
+        json={"is_active": True},
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is True
 
 
 # ------------------------------------------------------------------

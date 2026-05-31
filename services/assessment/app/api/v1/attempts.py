@@ -27,10 +27,8 @@ def _can_access_test(current_user: dict, test: Test) -> bool:
     role = current_user["role"]
     if role == "admin":
         return True
-    if role == "methodist":
-        return str(test.author_id) == str(current_user["id"])
-    if role in ("seminarist", "candidate"):
-        return test.is_active and str(test.manager_id) == str(current_user["manager_id"])
+    if role in ("methodist", "seminarist", "candidate"):
+        return test.is_active
     return False
 
 
@@ -70,7 +68,7 @@ async def _get_or_fail_active_attempt(
 @router.get("/start/{test_id}", response_model=AttemptStartResponse)
 async def start_attempt(
     test_id: UUID,
-    current_user: dict = Depends(require_role(["seminarist", "candidate"])),
+    current_user: dict = Depends(require_role(["methodist", "seminarist", "candidate"])),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Start or continue a test attempt."""
@@ -111,12 +109,13 @@ async def start_attempt(
 
     # Create new attempt
     now = datetime.now(UTC)
+    manager_id = current_user.get("manager_id") or current_user["id"]
     await attempt_crud.create(
         db,
         obj_in={
             "test_id": test_id,
             "user_id": user_id,
-            "manager_id": current_user["manager_id"],
+            "manager_id": manager_id,
             "answers": {},
             "score": 0,
             "is_passed": False,
@@ -146,7 +145,7 @@ async def start_attempt(
 @router.post("", response_model=AttemptResponse, status_code=status.HTTP_201_CREATED)
 async def submit_attempt(
     attempt_in: AttemptCreate,
-    current_user: dict = Depends(require_role(["seminarist", "candidate"])),
+    current_user: dict = Depends(require_role(["methodist", "seminarist", "candidate"])),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Submit answers and complete an attempt."""
@@ -204,9 +203,12 @@ async def submit_attempt(
             correct_count += 1
 
     total_questions = len(test.questions)
-    score = round(correct_count / total_questions * 100) if total_questions > 0 else 0
-
-    is_passed = score >= test.pass_score
+    if total_questions == 0:
+        score = 100
+        is_passed = True
+    else:
+        score = round(correct_count / total_questions * 100)
+        is_passed = score >= test.pass_score
 
     updated = await attempt_crud.update(
         db,

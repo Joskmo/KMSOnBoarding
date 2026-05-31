@@ -1,14 +1,28 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { contentApi } from '../api/client';
 import { createTest } from '../api/assessment';
 import type { Module } from '../types';
 
+const moduleStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    published: 'Опубликован',
+    draft: 'Черновик',
+    archived: 'В архиве',
+  };
+  return labels[status] || status;
+};
+
+
+
 export function TestCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedModuleId = searchParams.get('module_id') || '';
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [moduleId, setModuleId] = useState('');
+  const [moduleId, setModuleId] = useState(preselectedModuleId);
   const [passScore, setPassScore] = useState(70);
   const [modules, setModules] = useState<Module[]>([]);
   const [saving, setSaving] = useState(false);
@@ -27,6 +41,8 @@ export function TestCreatePage() {
       setError('Не удалось загрузить список модулей');
     }
   };
+
+  const selectedModule = modules.find((m) => m.id === moduleId);
 
   const validate = () => {
     const errors: Record<string, string> = {};
@@ -69,6 +85,13 @@ export function TestCreatePage() {
 
   return (
     <div className="max-w-2xl">
+      <button
+        type="button"
+        onClick={() => navigate('/tests')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <h1 className="text-2xl font-bold mb-6">Создание теста</h1>
       {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
 
@@ -86,16 +109,44 @@ export function TestCreatePage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Модуль *</label>
-          <select
-            value={moduleId}
-            onChange={(e) => setModuleId(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-          >
-            <option value="">Выберите модуль</option>
-            {modules.map((m) => (
-              <option key={m.id} value={m.id}>{m.title}</option>
-            ))}
-          </select>
+          <div className="mt-1 flex items-center gap-2">
+            <select
+              value={moduleId}
+              onChange={(e) => setModuleId(e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Выберите модуль</option>
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title} — {moduleStatusLabel(m.status)}
+                </option>
+              ))}
+            </select>
+            {selectedModule && (
+              <a
+                href={`/modules/${selectedModule.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Открыть модуль в новой вкладке"
+                className="shrink-0 px-3 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded border border-gray-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-4.5L21 3m0 0h-5.25M21 3v5.25"
+                  />
+                </svg>
+              </a>
+            )}
+          </div>
           {fieldErrors.module_id && <p className="text-red-600 text-sm mt-1">{fieldErrors.module_id}</p>}
         </div>
 

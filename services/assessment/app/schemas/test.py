@@ -27,6 +27,7 @@ class TestUpdate(BaseModel):
 
     title: str | None = None
     description: str | None = None
+    module_id: UUID | None = None
     pass_score: int | None = Field(None, ge=0, le=100)
     is_active: bool | None = None
 

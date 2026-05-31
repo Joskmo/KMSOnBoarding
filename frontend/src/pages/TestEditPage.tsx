@@ -4,10 +4,11 @@ import {
   getTest, updateTest, getQuestions, createQuestion, updateQuestion,
   reorderQuestion, deleteQuestion,
 } from '../api/assessment';
+import { contentApi } from '../api/client';
 import { QuestionEditor } from '../components/tests/QuestionEditor';
 import { QuestionList } from '../components/tests/QuestionList';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import type { Test, Question } from '../types';
+import type { Test, Question, Module } from '../types';
 
 type Tab = 'general' | 'questions';
 
@@ -16,7 +17,7 @@ export function TestEditPage() {
   const navigate = useNavigate();
   const [test, setTest] = useState<Test | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [tab, setTab] = useState<Tab>('general');
+  const [tab, setTab] = useState<Tab>('questions');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +26,8 @@ export function TestEditPage() {
   const [description, setDescription] = useState('');
   const [passScore, setPassScore] = useState(70);
   const [isActive, setIsActive] = useState(true);
+  const [moduleId, setModuleId] = useState<string>('');
+  const [modules, setModules] = useState<Module[]>([]);
 
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -32,9 +35,10 @@ export function TestEditPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [testRes, qRes] = await Promise.all([
+      const [testRes, qRes, modRes] = await Promise.all([
         getTest(id!),
         getQuestions(id!),
+        contentApi.get('/modules?status=published&size=100'),
       ]);
       const t = testRes.data;
       setTest(t);
@@ -42,6 +46,8 @@ export function TestEditPage() {
       setDescription(t.description || '');
       setPassScore(t.pass_score);
       setIsActive(t.is_active);
+      setModuleId(t.module_id);
+      setModules(modRes.data.items || []);
       setQuestions(qRes.data);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка загрузки');
@@ -59,7 +65,7 @@ export function TestEditPage() {
     setSaving(true);
     setError('');
     try {
-      await updateTest(id!, { title, description, pass_score: passScore, is_active: isActive });
+      await updateTest(id!, { title, description, module_id: moduleId, pass_score: passScore, is_active: isActive });
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка сохранения');
@@ -118,6 +124,13 @@ export function TestEditPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate(`/tests/${id}`)}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <h1 className="text-2xl font-bold mb-4">Редактирование теста</h1>
       {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
 
@@ -149,6 +162,18 @@ export function TestEditPage() {
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
               required
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Модуль</label>
+            <select
+              value={moduleId}
+              onChange={(e) => setModuleId(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+            >
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>{m.title}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Описание</label>

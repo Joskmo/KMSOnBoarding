@@ -26,7 +26,7 @@ class QuestionBase(BaseModel):
 
     text: str
     qtype: str = "single"
-    order_index: int = 0
+    order_index: int | None = None
     options: list[OptionItem]
 
     @model_validator(mode="after")

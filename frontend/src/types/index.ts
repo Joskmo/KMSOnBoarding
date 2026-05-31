@@ -27,7 +27,7 @@ export interface Module {
 export interface Lesson {
   id: string;
   title: string;
-  r7_uri: string;
+  r7_uri: string | null;
   content: string | null;
   module_id: string;
   order_index: number;
@@ -46,6 +46,14 @@ export interface Heuristic {
   is_approved: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ModuleAssignment {
+  id: string;
+  module_id: string;
+  user_id: string;
+  assigned_by: string;
+  created_at: string;
 }
 
 export interface Paginated<T> {
@@ -134,6 +142,8 @@ export interface Attempt {
 export interface AttemptListItem {
   id: string;
   test_id: string;
+  test_title: string;
+  module_id: string | null;
   user_id: string;
   manager_id: string;
   score: number;

@@ -41,6 +41,9 @@ class Module(Base):
     heuristics: Mapped[list["Heuristic"]] = relationship(
         "Heuristic", back_populates="module", cascade="all, delete-orphan"
     )
+    assignments: Mapped[list["ModuleAssignment"]] = relationship(
+        "ModuleAssignment", back_populates="module", cascade="all, delete-orphan"
+    )
 
 
 class Lesson(Base):
@@ -59,7 +62,7 @@ class Lesson(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    r7_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    r7_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     author_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -107,3 +110,28 @@ class Heuristic(Base):
     )
 
     module: Mapped["Module"] = relationship("Module", back_populates="heuristics")
+
+
+class ModuleAssignment(Base):
+    """Link between a module and an assigned user."""
+
+    __tablename__ = "module_assignments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    module_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("modules.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, index=True)
+    assigned_by: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+    module: Mapped["Module"] = relationship("Module", back_populates="assignments")
+
+    __table_args__ = (UniqueConstraint("module_id", "user_id"),)

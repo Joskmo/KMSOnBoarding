@@ -79,11 +79,25 @@ async def test_create_lesson_module_not_found(client, admin_headers):
 
 
 @pytest.mark.asyncio
-async def test_create_lesson_invalid(client, admin_headers, db):
+async def test_create_lesson_without_r7_uri(client, admin_headers, db):
     module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
     response = await client.post(
         f"/api/v1/modules/{module_id}/lessons",
         json={"title": "Lesson 1"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["title"] == "Lesson 1"
+    assert data["r7_uri"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_lesson_invalid(client, admin_headers, db):
+    module_id = await create_module(db, author_id=ADMIN_ID, manager_id=ADMIN_ID)
+    response = await client.post(
+        f"/api/v1/modules/{module_id}/lessons",
+        json={"r7_uri": "https://r7.example.com/1"},
         headers=admin_headers,
     )
     assert response.status_code == 422

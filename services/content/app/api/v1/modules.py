@@ -3,17 +3,26 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
-from app.crud import heuristic as heuristic_crud, lesson as lesson_crud, module as module_crud
-from app.db.models import Heuristic, Lesson, Module
+from app.core.permissions import can_access_module
+from app.crud import (
+    assignment as assignment_crud,
+    heuristic as heuristic_crud,
+    lesson as lesson_crud,
+    module as module_crud,
+)
+from app.db.models import Heuristic, Lesson, Module, ModuleAssignment
 from app.db.session import get_db
 from app.schemas import (
     HeuristicCreate,
     HeuristicResponse,
     LessonCreate,
     LessonResponse,
+    ModuleAssignmentCreate,
+    ModuleAssignmentResponse,
     ModuleCreate,
     ModuleResponse,
     ModuleStatusUpdate,
@@ -24,20 +33,6 @@ from app.schemas import (
 router = APIRouter(prefix="/modules", tags=["modules"])
 
 
-def _can_access_module(current_user: dict, module: Module) -> bool:
-    """Check if current user can access a module."""
-    role = current_user["role"]
-    if role == "admin":
-        return True
-    if role == "methodist":
-        return str(module.author_id) == str(current_user["id"])
-    if role in ("seminarist", "candidate"):
-        return module.status == "published" and str(module.manager_id) == str(
-            current_user["manager_id"]
-        )
-    return False
-
-
 def _can_modify_module(current_user: dict, module: Module) -> bool:
     """Check if current user can modify a module."""
     role = current_user["role"]
@@ -46,6 +41,21 @@ def _can_modify_module(current_user: dict, module: Module) -> bool:
     if role == "methodist":
         return str(module.author_id) == str(current_user["id"])
     return False
+
+
+async def _enrich_lesson_counts(db: AsyncSession, modules: list[Module]) -> None:
+    """Attach lesson_count to each module instance."""
+    if not modules:
+        return
+    module_ids = [m.id for m in modules]
+    result = await db.execute(
+        select(Lesson.module_id, func.count(Lesson.id))
+        .where(Lesson.module_id.in_(module_ids))
+        .group_by(Lesson.module_id)
+    )
+    counts = dict(result.all())
+    for m in modules:
+        m.lesson_count = counts.get(m.id, 0)
 
 
 @router.post(
@@ -84,21 +94,48 @@ async def list_modules(
         author_id = current_user["id"]
         manager_id = None
     else:
-        # seminarist/candidate: only published modules of their manager
+        # seminarist/candidate: only assigned published modules
         author_id = None
-        manager_id = current_user["manager_id"]
+        manager_id = None
         if not status_filter:
             status_filter = "published"
 
     skip = (page - 1) * size
-    modules, total = await module_crud.get_multi(
-        db,
-        skip=skip,
-        limit=size,
-        status=status_filter,
-        author_id=author_id,
-        manager_id=manager_id,
-    )
+
+    if role == "methodist":
+        assigned_ids = await assignment_crud.get_modules_for_user(
+            db, user_id=UUID(current_user["id"])
+        )
+        modules, total = await module_crud.get_multi_for_methodist(
+            db,
+            skip=skip,
+            limit=size,
+            status=status_filter,
+            author_id=UUID(current_user["id"]),
+            assigned_ids=assigned_ids,
+        )
+    elif role in ("seminarist", "candidate"):
+        assigned_ids = await assignment_crud.get_modules_for_user(
+            db, user_id=UUID(current_user["id"])
+        )
+        modules, total = await module_crud.get_multi(
+            db,
+            skip=skip,
+            limit=size,
+            status=status_filter,
+            module_ids=assigned_ids if assigned_ids else [],
+        )
+    else:
+        modules, total = await module_crud.get_multi(
+            db,
+            skip=skip,
+            limit=size,
+            status=status_filter,
+            author_id=author_id,
+            manager_id=manager_id,
+        )
+
+    await _enrich_lesson_counts(db, modules)
 
     return {
         "items": modules,
@@ -122,11 +159,13 @@ async def get_module(
             detail="Module not found",
         )
 
-    if not _can_access_module(current_user, module):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
+
+    await _enrich_lesson_counts(db, [module])
 
     return module
 
@@ -179,7 +218,6 @@ async def update_module_status(
 
     new_status = status_update.status
 
-    # Business rule: published -> draft is forbidden
     if module.status == "published" and new_status == "draft":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -272,7 +310,7 @@ async def list_lessons(
             detail="Module not found",
         )
 
-    if not _can_access_module(current_user, module):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -305,17 +343,13 @@ async def create_heuristic(
             detail="Module not found",
         )
 
-    if current_user["role"] in ("seminarist", "candidate"):
-        if module.status != "published":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Can only add heuristics to published modules",
-            )
-        if str(module.manager_id) != str(current_user["manager_id"]):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Module does not belong to your manager",
-            )
+    if current_user["role"] in ("seminarist", "candidate") and not await can_access_module(
+        current_user, module, db
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Can only add heuristics to assigned published modules",
+        )
 
     heuristic_data = heuristic_in.model_dump()
     heuristic_data["module_id"] = module_id
@@ -340,7 +374,7 @@ async def list_heuristics(
             detail="Module not found",
         )
 
-    if not _can_access_module(current_user, module):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
@@ -364,3 +398,97 @@ async def list_heuristics(
         heuristics = filtered
 
     return heuristics
+
+
+# ------------------------------------------------------------------
+# Module assignment endpoints under /modules/{module_id}
+# ------------------------------------------------------------------
+
+
+@router.post(
+    "/{module_id}/assignments",
+    response_model=list[ModuleAssignmentResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_assignments_endpoint(
+    module_id: UUID,
+    assignment_in: ModuleAssignmentCreate,
+    current_user: dict = Depends(require_role(["admin", "methodist"])),
+    db: AsyncSession = Depends(get_db),
+) -> list[ModuleAssignment]:
+    """Assign a published module to users."""
+    module = await module_crud.get(db, module_id)
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found",
+        )
+
+    if not _can_modify_module(current_user, module):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    if module.status != "published":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only published modules can be assigned",
+        )
+
+    return await assignment_crud.create_assignments(
+        db,
+        module_id=module_id,
+        user_ids=assignment_in.user_ids,
+        assigned_by=current_user["id"],
+    )
+
+
+@router.get("/{module_id}/assignments", response_model=list[ModuleAssignmentResponse])
+async def list_assignments(
+    module_id: UUID,
+    current_user: dict = Depends(require_role(["admin", "methodist"])),
+    db: AsyncSession = Depends(get_db),
+) -> list[ModuleAssignment]:
+    """List assignments for a module."""
+    module = await module_crud.get(db, module_id)
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found",
+        )
+
+    if not await can_access_module(current_user, module, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    return await assignment_crud.get_by_module(db, module_id=module_id)
+
+
+@router.delete(
+    "/{module_id}/assignments/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_assignment_endpoint(
+    module_id: UUID,
+    user_id: UUID,
+    current_user: dict = Depends(require_role(["admin", "methodist"])),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Revoke a module assignment from a user."""
+    module = await module_crud.get(db, module_id)
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found",
+        )
+
+    if not _can_modify_module(current_user, module):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    await assignment_crud.delete_assignment(db, module_id=module_id, user_id=user_id)

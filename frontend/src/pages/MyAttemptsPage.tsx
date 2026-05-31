@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getMyAttempts } from '../api/assessment';
+import { contentApi } from '../api/client';
 import { Pagination } from '../components/Pagination';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import type { AttemptListItem } from '../types';
+import type { AttemptListItem, Module } from '../types';
 
 export function MyAttemptsPage() {
   const [attempts, setAttempts] = useState<AttemptListItem[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [size] = useState(20);
@@ -13,22 +15,27 @@ export function MyAttemptsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchAttempts = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await getMyAttempts({ page, size });
-        setAttempts(res.data.items);
-        setTotal(res.data.total);
+        const [attemptsRes, modulesRes] = await Promise.all([
+          getMyAttempts({ page, size }),
+          contentApi.get('/modules?page=1&size=100'),
+        ]);
+        setAttempts(attemptsRes.data.items);
+        setTotal(attemptsRes.data.total);
+        setModules(modulesRes.data.items || []);
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Ошибка загрузки');
       } finally {
         setLoading(false);
       }
     };
-    fetchAttempts();
+    fetchData();
   }, [page, size]);
 
   const totalPages = Math.ceil(total / size);
+  const moduleMap = new Map(modules.map((m) => [m.id, m.title]));
 
   return (
     <div>
@@ -41,7 +48,8 @@ export function MyAttemptsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Тест (ID)</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Тест</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Модуль</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Результат</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Балл</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
@@ -50,7 +58,12 @@ export function MyAttemptsPage() {
               <tbody className="divide-y divide-gray-200">
                 {attempts.map((a) => (
                   <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">{a.test_id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                      {a.test_title || '—'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {a.module_id ? (moduleMap.get(a.module_id) || '—') : '—'}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs ${a.is_passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {a.is_passed ? 'Пройден' : 'Не пройден'}

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_role
-from app.crud import question as question_crud, test as test_crud
+from app.crud import attempt as attempt_crud, question as question_crud, test as test_crud
 from app.db.models import Test
 from app.db.session import get_db
 from app.schemas import QuestionReorder, QuestionResponse, QuestionUpdate
@@ -47,6 +47,7 @@ async def update_question(
         )
 
     update_data = question_in.model_dump(exclude_unset=True)
+    await attempt_crud.delete_by_test_id(db, test_id=question.test_id)
     return await question_crud.update(db, db_obj=question, obj_in=update_data)
 
 
@@ -72,6 +73,7 @@ async def reorder_question(
             detail="Insufficient permissions",
         )
 
+    await attempt_crud.delete_by_test_id(db, test_id=question.test_id)
     return await question_crud.reorder(db, db_obj=question, new_index=reorder_in.order_index)
 
 
@@ -96,4 +98,5 @@ async def delete_question(
             detail="Insufficient permissions",
         )
 
+    await attempt_crud.delete_by_test_id(db, test_id=question.test_id)
     await question_crud.delete(db, db_obj=question)

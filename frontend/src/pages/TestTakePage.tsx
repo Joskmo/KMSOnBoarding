@@ -71,6 +71,18 @@ export function TestTakePage() {
   if (error && !attemptData) return <div className="text-red-600 py-8">{error}</div>;
   if (!attemptData) return <div>Не удалось загрузить тест</div>;
 
+  // Auto-submit for empty tests
+  if (attemptData.questions.length === 0 && !result) {
+    submitAttempt({ test_id: id!, answers: {} })
+      .then((res) => {
+        setResult({ score: res.data.score, is_passed: res.data.is_passed });
+      })
+      .catch((err: any) => {
+        setError(err.response?.data?.detail || 'Ошибка отправки ответов');
+      });
+    return <LoadingSpinner />;
+  }
+
   // Result screen
   if (result) {
     return (

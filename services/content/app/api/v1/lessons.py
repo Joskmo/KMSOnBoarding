@@ -6,26 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
+from app.core.permissions import can_access_module
 from app.crud import lesson as lesson_crud, module as module_crud
 from app.db.models import Lesson, Module
 from app.db.session import get_db
 from app.schemas import LessonReorder, LessonResponse, LessonUpdate
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
-
-
-def _can_access_module(current_user: dict, module: Module) -> bool:
-    """Check if current user can access a module."""
-    role = current_user["role"]
-    if role == "admin":
-        return True
-    if role == "methodist":
-        return str(module.author_id) == str(current_user["id"])
-    if role in ("seminarist", "candidate"):
-        return module.status == "published" and str(module.manager_id) == str(
-            current_user["manager_id"]
-        )
-    return False
 
 
 def _can_modify_module(current_user: dict, module: Module) -> bool:
@@ -59,7 +46,7 @@ async def get_lesson(
             detail="Module not found",
         )
 
-    if not _can_access_module(current_user, module):
+    if not await can_access_module(current_user, module, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",

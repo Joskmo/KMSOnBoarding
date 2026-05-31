@@ -12,6 +12,8 @@ from app.schemas.lesson import (
     LessonUpdate,
 )
 from app.schemas.module import (
+    ModuleAssignmentCreate,
+    ModuleAssignmentResponse,
     ModuleCreate,
     ModuleResponse,
     ModuleStatusUpdate,
@@ -27,6 +29,8 @@ __all__ = [
     "LessonReorder",
     "LessonResponse",
     "LessonUpdate",
+    "ModuleAssignmentCreate",
+    "ModuleAssignmentResponse",
     "ModuleCreate",
     "ModuleResponse",
     "ModuleStatusUpdate",

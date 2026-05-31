@@ -2,16 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { contentApi } from '../api/client';
-import { getTests, deleteTest } from '../api/assessment';
+import { getTests, deleteTest, getMyAttempts } from '../api/assessment';
 import { Pagination } from '../components/Pagination';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import type { Test, Module } from '../types';
+import type { Test, Module, AttemptListItem } from '../types';
 
 export function TestsListPage() {
   const { hasRole } = useAuth();
   const navigate = useNavigate();
   const [tests, setTests] = useState<Test[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
+  const [myAttempts, setMyAttempts] = useState<AttemptListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [size] = useState(20);
@@ -20,7 +21,7 @@ export function TestsListPage() {
   const [error, setError] = useState('');
 
   const isManager = hasRole(['admin', 'methodist']);
-  const isTestTaker = hasRole(['seminarist', 'candidate']);
+  const isTestTaker = hasRole(['methodist', 'seminarist', 'candidate']);
 
   const fetchTests = useCallback(async () => {
     setLoading(true);
@@ -47,11 +48,18 @@ export function TestsListPage() {
         console.error('Failed to load modules', err);
       }
     };
-    if (isManager) {
-      fetchModules();
-    }
+    const fetchAttempts = async () => {
+      try {
+        const res = await getMyAttempts({ size: 100 });
+        setMyAttempts(res.data.items || []);
+      } catch (err: any) {
+        console.error('Failed to load attempts', err);
+      }
+    };
+    fetchModules();
     fetchTests();
-  }, [page, moduleFilter, isManager, fetchTests]);
+    fetchAttempts();
+  }, [page, moduleFilter, fetchTests]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Удалить тест?')) return;
@@ -65,33 +73,104 @@ export function TestsListPage() {
 
   const totalPages = Math.ceil(total / size);
 
-  // --- Seminarist / Candidate view ---
+  // --- Test taker view (methodist, seminarist, candidate) ---
   if (isTestTaker && !isManager) {
+    const accessibleModuleIds = new Set(modules.map((m) => m.id));
+    const accessibleTests = tests.filter((t) => accessibleModuleIds.has(t.module_id));
+
+    // Build a map of best attempt per test
+    const bestAttemptByTest = new Map<string, AttemptListItem>();
+    myAttempts.forEach((a) => {
+      const existing = bestAttemptByTest.get(a.test_id);
+      if (!existing || a.score > existing.score) {
+        bestAttemptByTest.set(a.test_id, a);
+      }
+    });
+
+    const passedTests = accessibleTests.filter((t) => bestAttemptByTest.get(t.id)?.is_passed);
+    const notPassedTests = accessibleTests.filter((t) => !bestAttemptByTest.get(t.id)?.is_passed);
+
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6">Доступные тесты</h1>
         {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
         {loading ? <LoadingSpinner /> : (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tests.map((test) => (
-                <div key={test.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-                  <h3 className="text-lg font-semibold">{test.title}</h3>
-                  <p className="text-gray-600 mt-1 text-sm">{test.description}</p>
-                  <div className="mt-3 flex gap-2 text-sm text-gray-500">
-                    <span>Вопросов: {test.question_count}</span>
-                    <span>Проходной: {test.pass_score}%</span>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/tests/${test.id}/take`)}
-                    className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                  >
-                    Начать тест
-                  </button>
-                </div>
-              ))}
-            </div>
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            {/* Not passed / available tests */}
+            {notPassedTests.length === 0 && passedTests.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">Нет доступных тестов</div>
+            ) : (
+              <>
+                {notPassedTests.length > 0 && (
+                  <>
+                    <h2 className="text-lg font-semibold mb-3 text-gray-700">Новые тесты</h2>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
+                      {notPassedTests.map((test) => {
+                        const attempt = bestAttemptByTest.get(test.id);
+                        return (
+                          <div key={test.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+                            <h3 className="text-lg font-semibold">{test.title}</h3>
+                            <p className="text-gray-600 mt-1 text-sm">{test.description}</p>
+                            <div className="mt-3 flex gap-2 text-sm text-gray-500">
+                              <span>Вопросов: {test.question_count}</span>
+                              <span>Проходной: {test.pass_score}%</span>
+                            </div>
+                            {attempt && !attempt.is_passed && (
+                              <div className="mt-2 text-sm text-red-600">
+                                Последняя попытка: {attempt.score}% (не пройден)
+                              </div>
+                            )}
+                            <button
+                              onClick={() => navigate(`/tests/${test.id}/take`)}
+                              className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                            >
+                              {attempt ? 'Повторить тест' : 'Начать тест'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* Passed tests history */}
+                {passedTests.length > 0 && (
+                  <>
+                    <h2 className="text-lg font-semibold mb-3 text-gray-700">Пройденные тесты</h2>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {passedTests.map((test) => {
+                        const attempt = bestAttemptByTest.get(test.id)!;
+                        return (
+                          <div key={test.id} className="bg-white p-6 rounded-lg shadow border border-green-200">
+                            <div className="flex justify-between items-start">
+                              <h3 className="text-lg font-semibold">{test.title}</h3>
+                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                                Пройден
+                              </span>
+                            </div>
+                            <p className="text-gray-600 mt-1 text-sm">{test.description}</p>
+                            <div className="mt-3 flex gap-2 text-sm text-gray-500">
+                              <span>Вопросов: {test.question_count}</span>
+                              <span>Проходной: {test.pass_score}%</span>
+                            </div>
+                            <div className="mt-2 text-sm text-green-700 font-medium">
+                              Результат: {attempt.score}%
+                            </div>
+                            <button
+                              onClick={() => navigate(`/tests/${test.id}/take`)}
+                              className="mt-4 w-full px-4 py-2 border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50"
+                            >
+                              Пройти снова
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                <Pagination page={page} totalPages={Math.ceil(accessibleTests.length / size)} onPageChange={setPage} />
+              </>
+            )}
           </>
         )}
       </div>
@@ -126,7 +205,9 @@ export function TestsListPage() {
         </select>
       </div>
 
-      {loading ? <LoadingSpinner /> : (
+      {loading ? <LoadingSpinner /> : tests.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">Нет тестов</div>
+      ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
