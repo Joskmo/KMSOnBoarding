@@ -18,6 +18,7 @@ app = FastAPI(
     description="Authentication and authorization service for KMS",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 
