@@ -73,25 +73,31 @@ export function TestsListPage() {
         {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
         {loading ? <LoadingSpinner /> : (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tests.map((test) => (
-                <div key={test.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-                  <h3 className="text-lg font-semibold">{test.title}</h3>
-                  <p className="text-gray-600 mt-1 text-sm">{test.description}</p>
-                  <div className="mt-3 flex gap-2 text-sm text-gray-500">
-                    <span>Вопросов: {test.question_count}</span>
-                    <span>Проходной: {test.pass_score}%</span>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/tests/${test.id}/take`)}
-                    className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                  >
-                    Начать тест
-                  </button>
+            {tests.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">Нет доступных тестов</div>
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {tests.map((test) => (
+                    <div key={test.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+                      <h3 className="text-lg font-semibold">{test.title}</h3>
+                      <p className="text-gray-600 mt-1 text-sm">{test.description}</p>
+                      <div className="mt-3 flex gap-2 text-sm text-gray-500">
+                        <span>Вопросов: {test.question_count}</span>
+                        <span>Проходной: {test.pass_score}%</span>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/tests/${test.id}/take`)}
+                        className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                      >
+                        Начать тест
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+                <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+              </>
+            )}
           </>
         )}
       </div>
@@ -126,7 +132,9 @@ export function TestsListPage() {
         </select>
       </div>
 
-      {loading ? <LoadingSpinner /> : (
+      {loading ? <LoadingSpinner /> : tests.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">Нет тестов</div>
+      ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
