@@ -150,7 +150,7 @@ def candidate_headers() -> dict:
 # ------------------------------------------------------------------
 
 
-from app.crud import heuristic as heuristic_crud, lesson as lesson_crud, module as module_crud
+from app.crud import assignment as assignment_crud, heuristic as heuristic_crud, lesson as lesson_crud, module as module_crud
 
 
 async def create_module(
@@ -220,3 +220,18 @@ async def create_heuristic(
         },
     )
     return heuristic.id
+
+
+async def assign_module(
+    db: AsyncSession,
+    module_id: UUID,
+    user_id: UUID,
+    assigned_by: UUID | None = None,
+) -> None:
+    """Assign a module to a user directly in the database."""
+    await assignment_crud.create_assignments(
+        db,
+        module_id=module_id,
+        user_ids=[user_id],
+        assigned_by=assigned_by or METHODIST_1_ID,
+    )
