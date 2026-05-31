@@ -267,7 +267,7 @@ async def test_methodist_list_includes_self(client):
 
     # Methodist lists users - sees all users including admin and self
     response = await client.get(
-        "/api/v1/users/",
+        "/api/v1/users",
         headers={"Authorization": f"Bearer {methodist_token}"},
     )
     assert response.status_code == 200

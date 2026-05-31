@@ -37,7 +37,7 @@ async def test_admin_can_create_invitation_for_any_role(client):
     token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "new@example.com",
             "role_name": UserRole.METHODIST,
@@ -61,7 +61,7 @@ async def test_methodist_can_create_invitation_for_candidate(client):
 
     # Admin invites methodist
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "methodist@example.com",
             "role_name": UserRole.METHODIST,
@@ -82,7 +82,7 @@ async def test_methodist_can_create_invitation_for_candidate(client):
 
     # Methodist invites candidate
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "candidate@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -100,7 +100,7 @@ async def test_methodist_cannot_create_invitation_for_admin(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "methodist@example.com",
             "role_name": UserRole.METHODIST,
@@ -119,7 +119,7 @@ async def test_methodist_cannot_create_invitation_for_admin(client):
     methodist_token = await login_user(client, "methodist@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "new_admin@example.com",
             "role_name": UserRole.ADMIN,
@@ -137,7 +137,7 @@ async def test_register_with_valid_invitation(client):
     token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "candidate@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -168,7 +168,7 @@ async def test_register_with_used_invitation(client):
     token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "candidate@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -240,7 +240,7 @@ async def test_list_invitations_admin_sees_all(client):
 
     # Admin creates invitation
     await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "c1@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -250,7 +250,7 @@ async def test_list_invitations_admin_sees_all(client):
 
     # Admin list
     response = await client.get(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200
@@ -264,7 +264,7 @@ async def test_delete_invitation(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "c1@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -281,7 +281,7 @@ async def test_delete_invitation(client):
 
     # Verify deleted
     response = await client.get(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert len(response.json()) == 0
@@ -306,7 +306,7 @@ async def test_list_invitations_with_null_created_by(client, db):
     await db.commit()
 
     response = await client.get(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200
@@ -322,7 +322,7 @@ async def test_candidate_cannot_create_invitation(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "candidate@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -341,7 +341,7 @@ async def test_candidate_cannot_create_invitation(client):
     candidate_token = await login_user(client, "candidate@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "new@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {candidate_token}"},
     )
@@ -355,7 +355,7 @@ async def test_create_invitation_for_existing_user_email(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "admin@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -374,7 +374,7 @@ async def test_create_invitation_idempotent(client):
 
     # First invitation
     response1 = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "dup@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -386,7 +386,7 @@ async def test_create_invitation_idempotent(client):
 
     # Second invitation for same email — should return existing
     response2 = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "dup@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -404,7 +404,7 @@ async def test_register_with_wrong_email_for_invitation(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "specific@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -433,7 +433,7 @@ async def test_register_with_matching_email_for_invitation(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "match@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -464,7 +464,7 @@ async def test_seminarist_cannot_list_invitations(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "seminarist@example.com",
             "role_name": UserRole.SEMINARIST,
@@ -483,7 +483,7 @@ async def test_seminarist_cannot_list_invitations(client):
     seminarist_token = await login_user(client, "seminarist@example.com", "password123")
 
     response = await client.get(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         headers={"Authorization": f"Bearer {seminarist_token}"},
     )
     assert response.status_code == 403
@@ -497,7 +497,7 @@ async def test_methodist_sees_only_own_invitations(client):
 
     # Invite methodist1
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "m1@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -505,7 +505,7 @@ async def test_methodist_sees_only_own_invitations(client):
 
     # Invite methodist2
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "m2@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -519,21 +519,21 @@ async def test_methodist_sees_only_own_invitations(client):
 
     # M1 creates invitation
     await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "c1@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {m1_token}"},
     )
 
     # M2 creates invitation
     await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "c2@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {m2_token}"},
     )
 
     # M1 should see only 1
     response = await client.get(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         headers={"Authorization": f"Bearer {m1_token}"},
     )
     assert response.status_code == 200
@@ -548,7 +548,7 @@ async def test_methodist_can_delete_own_invitation(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "methodist@example.com",
             "role_name": UserRole.METHODIST,
@@ -567,7 +567,7 @@ async def test_methodist_can_delete_own_invitation(client):
     methodist_token = await login_user(client, "methodist@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "c1@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {methodist_token}"},
     )
@@ -588,7 +588,7 @@ async def test_methodist_cannot_delete_others_invitation(client):
 
     # Invite m1
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "m1@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -596,7 +596,7 @@ async def test_methodist_cannot_delete_others_invitation(client):
 
     # Invite m2
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "m2@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -610,7 +610,7 @@ async def test_methodist_cannot_delete_others_invitation(client):
 
     # M1 creates invitation
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "c1@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {m1_token}"},
     )
@@ -645,7 +645,7 @@ async def test_create_invitation_with_invalid_role_name(client):
     admin_token = await login_user(client, "admin@example.com", "password123")
 
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "new@example.com", "role_name": "superuser"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -679,7 +679,7 @@ async def test_methodist_auto_assigns_manager_id(client):
 
     # Admin invites methodist
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "methodist@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -696,7 +696,7 @@ async def test_methodist_auto_assigns_manager_id(client):
 
     # Methodist invites candidate without specifying manager_id
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "candidate@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {methodist_token}"},
     )
@@ -713,7 +713,7 @@ async def test_methodist_cannot_assign_other_manager(client):
 
     # Invite methodist1
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "m1@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -721,7 +721,7 @@ async def test_methodist_cannot_assign_other_manager(client):
 
     # Invite methodist2
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "m2@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -734,7 +734,7 @@ async def test_methodist_cannot_assign_other_manager(client):
 
     # M1 tries to assign M2 as manager
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "candidate@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -754,7 +754,7 @@ async def test_admin_can_assign_methodist_as_manager(client):
 
     # Invite methodist
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "methodist@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -768,7 +768,7 @@ async def test_admin_can_assign_methodist_as_manager(client):
 
     # Admin creates candidate invitation with methodist as manager
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "candidate@example.com",
             "role_name": UserRole.CANDIDATE,
@@ -788,7 +788,7 @@ async def test_methodist_invitation_for_methodist_no_manager(client):
 
     # Admin invites a methodist
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "methodist@example.com", "role_name": UserRole.METHODIST},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -803,7 +803,7 @@ async def test_methodist_invitation_for_methodist_no_manager(client):
 
     # Methodist invites another methodist with manager_id — should be ignored
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={
             "email": "m2@example.com",
             "role_name": UserRole.METHODIST,
@@ -823,7 +823,7 @@ async def test_admin_auto_assigns_self_as_manager(client):
 
     # Admin creates candidate invitation without specifying manager_id
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "candidate@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -839,7 +839,7 @@ async def test_invitation_used_by_set_after_registration(client):
 
     # Admin creates invitation
     response = await client.post(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         json={"email": "candidate@example.com", "role_name": UserRole.CANDIDATE},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
@@ -860,7 +860,7 @@ async def test_invitation_used_by_set_after_registration(client):
 
     # Verify invitation shows used_by
     response = await client.get(
-        "/api/v1/invitations/",
+        "/api/v1/invitations",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 200

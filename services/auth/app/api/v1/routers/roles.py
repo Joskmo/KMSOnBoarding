@@ -7,7 +7,7 @@ from app.db.models import User
 router = APIRouter(prefix="/roles", tags=["roles"])
 
 
-@router.get("/")
+@router.get("")
 async def list_roles(
     _current_user: User = Depends(get_current_user),
 ) -> list[dict[str, str]]:
