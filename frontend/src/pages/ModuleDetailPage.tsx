@@ -11,12 +11,14 @@ import {
   assignModule,
   unassignModule,
 } from '../api/content';
+import { getTests } from '../api/assessment';
 import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { RoleGuard } from '../components/RoleGuard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import MarkdownEditor from '../components/MarkdownEditor';
 import type { Module, Lesson, Heuristic, ModuleAssignment, User } from '../types';
+import type { Test } from '../types';
 
 export function ModuleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,7 @@ export function ModuleDetailPage() {
   const [module, setModule] = useState<Module | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [heuristics, setHeuristics] = useState<Heuristic[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -157,14 +160,16 @@ export function ModuleDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [modRes, lessonsRes, heurRes] = await Promise.all([
+      const [modRes, lessonsRes, heurRes, testsRes] = await Promise.all([
         contentApi.get(`/modules/${id}`),
         contentApi.get(`/modules/${id}/lessons`),
         contentApi.get(`/modules/${id}/heuristics`),
+        getTests({ module_id: id, size: 100 }),
       ]);
       setModule(modRes.data);
       setLessons(lessonsRes.data);
       setHeuristics(heurRes.data);
+      setTests(testsRes.data.items || []);
       if (hasRole(['admin', 'methodist'])) {
         fetchAssignments();
         try {
@@ -786,6 +791,56 @@ export function ModuleDetailPage() {
             </form>
           )}
         </RoleGuard>
+      </div>
+
+      {/* Тесты */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Тесты ({tests.length})</h2>
+        {tests.length === 0 ? (
+          <p className="text-gray-500 text-sm">Нет тестов для этого модуля</p>
+        ) : (
+          <div className="space-y-4">
+            {tests.map((test) => (
+              <div key={test.id} className="bg-white p-4 rounded shadow flex justify-between items-center">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{test.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Вопросов: {test.question_count} | Проходной: {test.pass_score}%
+                  </p>
+                  <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${test.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {test.is_active ? 'Активен' : 'Неактивен'}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {hasRole(['admin', 'methodist']) && canManage && (
+                    <>
+                      <button
+                        onClick={() => navigate(`/tests/${test.id}/edit`)}
+                        className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-600 rounded hover:bg-indigo-50"
+                      >
+                        Редактировать
+                      </button>
+                      <button
+                        onClick={() => navigate(`/tests/${test.id}/attempts`)}
+                        className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+                      >
+                        Результаты
+                      </button>
+                    </>
+                  )}
+                  {hasRole(['seminarist', 'candidate']) && test.is_active && (
+                    <button
+                      onClick={() => navigate(`/tests/${test.id}/take`)}
+                      className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                    >
+                      Пройти тест
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
