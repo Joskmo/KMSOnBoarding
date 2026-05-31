@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_role
@@ -65,6 +66,21 @@ def _can_modify_module(current_user: dict, module: Module) -> bool:
     if role == "methodist":
         return str(module.author_id) == str(current_user["id"])
     return False
+
+
+async def _enrich_lesson_counts(db: AsyncSession, modules: list[Module]) -> None:
+    """Attach lesson_count to each module instance."""
+    if not modules:
+        return
+    module_ids = [m.id for m in modules]
+    result = await db.execute(
+        select(Lesson.module_id, func.count(Lesson.id))
+        .where(Lesson.module_id.in_(module_ids))
+        .group_by(Lesson.module_id)
+    )
+    counts = {mid: count for mid, count in result.all()}
+    for m in modules:
+        m.lesson_count = counts.get(m.id, 0)
 
 
 @router.post(
@@ -144,6 +160,8 @@ async def list_modules(
             manager_id=manager_id,
         )
 
+    await _enrich_lesson_counts(db, modules)
+
     return {
         "items": modules,
         "total": total,
@@ -171,6 +189,8 @@ async def get_module(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
+
+    await _enrich_lesson_counts(db, [module])
 
     return module
 
