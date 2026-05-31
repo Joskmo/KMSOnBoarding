@@ -32,7 +32,7 @@ services:
       - assessment
 
   certbot:
-    image: certbot/certbot
+    image: certbot/certbot:v5.6
     volumes:
       - certbot-data:/etc/letsencrypt
       - certbot-www:/var/www/certbot
@@ -86,7 +86,7 @@ services:
       - kms_internal
 
   db_auth:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: kms_auth
       POSTGRES_USER: kms
@@ -97,7 +97,7 @@ services:
       - kms_internal
 
   db_content:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: kms_content
       POSTGRES_USER: kms
@@ -108,7 +108,7 @@ services:
       - kms_internal
 
   db_assessment:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: kms_assessment
       POSTGRES_USER: kms
@@ -119,7 +119,7 @@ services:
       - kms_internal
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     networks:
       - kms_internal
 
