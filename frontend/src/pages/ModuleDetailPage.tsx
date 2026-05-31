@@ -72,7 +72,7 @@ export function ModuleDetailPage() {
     try {
       const res = await getModuleAssignments(id);
       setAssignments(res.data);
-    } catch (err: any) {
+    } catch {
       // silent fail
     }
   };
