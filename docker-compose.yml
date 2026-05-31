@@ -32,7 +32,7 @@ services:
       - assessment
 
   certbot:
-    image: certbot/certbot:v5.6
+    image: certbot/certbot:v2.11.0
     volumes:
       - certbot-data:/etc/letsencrypt
       - certbot-www:/var/www/certbot
