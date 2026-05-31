@@ -1,5 +1,5 @@
 # Stage 1: Build SPA
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
@@ -9,7 +9,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # Stage 2: Nginx runtime with auto-certs
-FROM nginx:1.30-alpine
+FROM nginx:1.30.2-alpine
 RUN apk add --no-cache openssl gettext
 COPY frontend/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY frontend/entrypoint.sh /entrypoint.sh
