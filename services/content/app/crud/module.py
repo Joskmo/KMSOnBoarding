@@ -22,6 +22,7 @@ async def get_multi(
     status: str | None = None,
     author_id: UUID | None = None,
     manager_id: UUID | None = None,
+    module_ids: list[UUID] | None = None,
 ) -> tuple[list[Module], int]:
     """Get multiple modules with optional filtering and total count."""
     query = select(Module)
@@ -36,6 +37,9 @@ async def get_multi(
     if manager_id:
         query = query.where(Module.manager_id == manager_id)
         count_query = count_query.where(Module.manager_id == manager_id)
+    if module_ids is not None:
+        query = query.where(Module.id.in_(module_ids))
+        count_query = count_query.where(Module.id.in_(module_ids))
 
     query = query.offset(skip).limit(limit)
 
