@@ -47,6 +47,7 @@ export function ModuleDetailPage() {
 
   // Assignments
   const [assignments, setAssignments] = useState<ModuleAssignment[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
@@ -160,6 +161,12 @@ export function ModuleDetailPage() {
       setHeuristics(heurRes.data);
       if (hasRole(['admin', 'methodist'])) {
         fetchAssignments();
+        try {
+          const usersRes = await authApi.get('/users');
+          setUsers(usersRes.data);
+        } catch {
+          // silent fail
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка загрузки');
@@ -447,17 +454,22 @@ export function ModuleDetailPage() {
             <p className="text-gray-500 text-sm">Нет назначенных пользователей</p>
           ) : (
             <div className="space-y-2">
-              {assignments.map((a) => (
-                <div key={a.id} className="flex justify-between items-center border-b border-gray-100 py-2">
-                  <span className="text-sm text-gray-700">{a.user_id}</span>
-                  <button
-                    onClick={() => handleUnassign(a.user_id)}
-                    className="text-red-600 hover:text-red-800 text-xs"
-                  >
-                    Отозвать
-                  </button>
-                </div>
-              ))}
+              {assignments.map((a) => {
+                const assignedUser = users.find((u) => u.id === a.user_id);
+                return (
+                  <div key={a.id} className="flex justify-between items-center border-b border-gray-100 py-2">
+                    <span className="text-sm text-gray-700">
+                      {assignedUser ? `${assignedUser.full_name || assignedUser.email} (${assignedUser.role})` : a.user_id}
+                    </span>
+                    <button
+                      onClick={() => handleUnassign(a.user_id)}
+                      className="text-red-600 hover:text-red-800 text-xs"
+                    >
+                      Отозвать
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
