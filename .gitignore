@@ -7,3 +7,14 @@ __pycache__/
 node_modules/
 dist/
 build/
+test-stand/
+docs
+notes
+.playwright/
+.playwright-mcp/
+.opencode/
+AGENTS.md
+*.tsbuildinfo
+*.temp
+.python-version
+services.code-workspace

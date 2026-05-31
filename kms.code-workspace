@@ -1,0 +1,77 @@
+{
+    "folders": [
+        {
+            "name": "KMS Root",
+            "path": "."
+        },
+        {
+            "name": "Auth Service",
+            "path": "services/auth"
+        },
+        {
+            "name": "Content Service",
+            "path": "services/content"
+        },
+        {
+            "name": "Assessment Service",
+            "path": "services/assessment"
+        },
+        {
+            "name": "Frontend",
+            "path": "frontend"
+        }
+    ],
+    "settings": {
+        "editor.rulers": [100],
+        "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff",
+            "editor.formatOnSave": true,
+            "editor.tabSize": 4,
+            "editor.insertSpaces": true,
+            "editor.codeActionsOnSave": {
+                "source.fixAll.ruff": "explicit",
+                "source.organizeImports.ruff": "explicit"
+            }
+        },
+        "[javascript]": { "editor.tabSize": 2, "editor.insertSpaces": true },
+        "[typescript]": { "editor.tabSize": 2, "editor.insertSpaces": true },
+        "[javascriptreact]": { "editor.tabSize": 2, "editor.insertSpaces": true },
+        "[typescriptreact]": { "editor.tabSize": 2, "editor.insertSpaces": true },
+        "[json]": {
+            "editor.defaultFormatter": "vscode.json-language-features",
+            "editor.formatOnSave": true
+        },
+        "ruff.nativeServer": "on",
+        "ruff.configuration": "${workspaceFolder:KMS Root}/ruff.toml",
+        "python.analysis.typeCheckingMode": "basic",
+        "python.analysis.autoImportCompletions": true,
+        "python.analysis.diagnosticSeverityOverrides": {
+            "reportMissingModuleSource": "none"
+        },
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.venv": true,
+            "**/.pytest_cache": true,
+            "**/.ruff_cache": true,
+            "**/node_modules": true,
+            "**/dist": true,
+            "**/*.tsbuildinfo": true
+        },
+        "search.exclude": {
+            "**/__pycache__": true,
+            "**/.venv": true,
+            "**/.pytest_cache": true,
+            "**/.ruff_cache": true,
+            "**/node_modules": true,
+            "**/dist": true,
+            "**/*.tsbuildinfo": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "charliermarsh.ruff",
+            "dbaeumer.vscode-eslint"
+        ]
+    }
+}

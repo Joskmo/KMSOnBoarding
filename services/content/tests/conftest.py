@@ -1,0 +1,242 @@
+"""Pytest fixtures and helpers for content service tests."""
+
+from collections.abc import AsyncGenerator
+from uuid import UUID
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
+# Monkeypatch SQLite UUID rendering to CHAR(32) to avoid numeric affinity issues
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+
+_original_visit_UUID = SQLiteTypeCompiler.visit_UUID
+
+
+def _visit_UUID_fixed(self, type_, **kw):
+    """Render UUID as CHAR(32) for SQLite to prevent numeric conversion."""
+    return self._render_string_type("CHAR", length=32, collation=None)
+
+
+SQLiteTypeCompiler.visit_UUID = _visit_UUID_fixed
+
+# Monkeypatch Uuid bind_processor to accept string UUIDs (app passes string IDs)
+from sqlalchemy.sql.sqltypes import Uuid
+
+_original_uuid_bind_processor = Uuid.bind_processor
+
+
+def _fixed_bind_processor(self, dialect):
+    original = _original_uuid_bind_processor(self, dialect)
+    if original is None:
+        return None
+
+    def process(value):
+        if value is not None and isinstance(value, str):
+            return value.replace("-", "")
+        return original(value)
+
+    return process
+
+
+Uuid.bind_processor = _fixed_bind_processor
+
+from app.core.config import get_settings
+from app.db.models import Base
+from app.db.session import get_db
+from app.main import app
+
+settings = get_settings()
+settings.SECRET_KEY = "test-secret"
+settings.ALGORITHM = "HS256"
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+engine = create_async_engine(
+    TEST_DATABASE_URL,
+    poolclass=StaticPool,
+    connect_args={"check_same_thread": False},
+    future=True,
+)
+async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+# Fixed UUIDs for testing
+ADMIN_ID = UUID("11111111-1111-1111-1111-111111111111")
+METHODIST_1_ID = UUID("22222222-2222-2222-2222-222222222222")
+METHODIST_2_ID = UUID("33333333-3333-3333-3333-333333333333")
+SEMINARIST_ID = UUID("44444444-4444-4444-4444-444444444444")
+CANDIDATE_ID = UUID("55555555-5555-5555-5555-555555555555")
+
+
+async def override_get_db() -> AsyncGenerator[AsyncSession]:
+    """Override get_db dependency with a test database session."""
+    async with async_session() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+app.dependency_overrides[get_db] = override_get_db
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def setup_database() -> AsyncGenerator[None]:
+    """Create and drop database tables for each test."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient]:
+    """Provide an async HTTP client for testing."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def db() -> AsyncGenerator[AsyncSession]:
+    """Provide a direct database session for test helpers."""
+    async with async_session() as session:
+        yield session
+        await session.close()
+
+
+@pytest.fixture
+def admin_headers() -> dict:
+    return {"X-User-ID": str(ADMIN_ID), "X-User-Role": "admin"}
+
+
+@pytest.fixture
+def methodist1_headers() -> dict:
+    return {"X-User-ID": str(METHODIST_1_ID), "X-User-Role": "methodist"}
+
+
+@pytest.fixture
+def methodist2_headers() -> dict:
+    return {"X-User-ID": str(METHODIST_2_ID), "X-User-Role": "methodist"}
+
+
+@pytest.fixture
+def seminarist_headers() -> dict:
+    return {
+        "X-User-ID": str(SEMINARIST_ID),
+        "X-User-Role": "seminarist",
+        "X-Manager-ID": str(METHODIST_1_ID),
+    }
+
+
+@pytest.fixture
+def candidate_headers() -> dict:
+    return {
+        "X-User-ID": str(CANDIDATE_ID),
+        "X-User-Role": "candidate",
+        "X-Manager-ID": str(METHODIST_1_ID),
+    }
+
+
+# ------------------------------------------------------------------
+# DB helper functions
+# ------------------------------------------------------------------
+
+
+from app.crud import (
+    assignment as assignment_crud,
+    heuristic as heuristic_crud,
+    lesson as lesson_crud,
+    module as module_crud,
+)
+
+
+async def create_module(
+    db: AsyncSession,
+    title: str = "Test Module",
+    description: str | None = None,
+    status: str = "draft",
+    author_id: UUID | None = None,
+    manager_id: UUID | None = None,
+) -> UUID:
+    """Create a module directly in the database."""
+    module = await module_crud.create(
+        db,
+        obj_in={
+            "title": title,
+            "description": description,
+            "status": status,
+            "author_id": author_id or METHODIST_1_ID,
+            "manager_id": manager_id or METHODIST_1_ID,
+        },
+    )
+    return module.id
+
+
+async def create_lesson(
+    db: AsyncSession,
+    module_id: UUID,
+    title: str = "Test Lesson",
+    r7_uri: str = "https://r7.example.com/doc",
+    order_index: int | None = None,
+    author_id: UUID | None = None,
+) -> UUID:
+    """Create a lesson directly in the database."""
+    data = {
+        "module_id": module_id,
+        "title": title,
+        "r7_uri": r7_uri,
+        "author_id": author_id or METHODIST_1_ID,
+    }
+    if order_index is not None:
+        data["order_index"] = order_index
+    else:
+        data["order_index"] = await lesson_crud.get_next_order_index(db, module_id)
+    lesson = await lesson_crud.create(db, obj_in=data)
+    return lesson.id
+
+
+async def create_heuristic(
+    db: AsyncSession,
+    module_id: UUID,
+    content: str = "Test heuristic",
+    author_id: UUID | None = None,
+    manager_id: UUID | None = None,
+    is_approved: bool = False,
+    pending_content: str | None = None,
+) -> UUID:
+    """Create a heuristic directly in the database."""
+    heuristic = await heuristic_crud.create(
+        db,
+        obj_in={
+            "module_id": module_id,
+            "content": content,
+            "author_id": author_id or SEMINARIST_ID,
+            "manager_id": manager_id or METHODIST_1_ID,
+            "is_approved": is_approved,
+            "pending_content": pending_content,
+        },
+    )
+    return heuristic.id
+
+
+async def assign_module(
+    db: AsyncSession,
+    module_id: UUID,
+    user_id: UUID,
+    assigned_by: UUID | None = None,
+) -> None:
+    """Assign a module to a user directly in the database."""
+    await assignment_crud.create_assignments(
+        db,
+        module_id=module_id,
+        user_ids=[user_id],
+        assigned_by=assigned_by or METHODIST_1_ID,
+    )
