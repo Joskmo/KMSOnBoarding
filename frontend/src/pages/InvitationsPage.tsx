@@ -1,28 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { Invitation, User } from '../types';
 
 function CopyIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
-  );
-}
 
 export function InvitationsPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -121,13 +104,6 @@ export function InvitationsPage() {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => navigate('/modules')}
-        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
-      >
-        ← Назад
-      </button>
       <h1 className="text-2xl font-bold mb-6">Приглашения и регистрация</h1>
 
       {/* Create invitation form */}
