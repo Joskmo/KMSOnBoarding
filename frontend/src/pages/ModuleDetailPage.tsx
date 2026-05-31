@@ -2,12 +2,21 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { contentApi } from '../api/client';
-import { updateHeuristic, deleteHeuristic, approveHeuristicEdit, rejectHeuristicEdit } from '../api/content';
+import {
+  updateHeuristic,
+  deleteHeuristic,
+  approveHeuristicEdit,
+  rejectHeuristicEdit,
+  getModuleAssignments,
+  assignModule,
+  unassignModule,
+} from '../api/content';
+import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { RoleGuard } from '../components/RoleGuard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import MarkdownEditor from '../components/MarkdownEditor';
-import type { Module, Lesson, Heuristic } from '../types';
+import type { Module, Lesson, Heuristic, ModuleAssignment, User } from '../types';
 
 export function ModuleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +45,13 @@ export function ModuleDetailPage() {
   // Inline edit state
   const [heuristicEdits, setHeuristicEdits] = useState<Record<string, { content: string }>>({});
 
+  // Assignments
+  const [assignments, setAssignments] = useState<ModuleAssignment[]>([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [assignLoading, setAssignLoading] = useState(false);
+
   const canModerate = () => {
     if (!user) return false;
     if (hasRole(['admin'])) return true;
@@ -51,6 +67,82 @@ export function ModuleDetailPage() {
     return false;
   };
 
+  const fetchAssignments = async () => {
+    if (!id) return;
+    try {
+      const res = await getModuleAssignments(id);
+      setAssignments(res.data);
+    } catch (err: any) {
+      // silent fail
+    }
+  };
+
+  const handleOpenAssignModal = async () => {
+    setError('');
+    setSelectedUserIds(new Set());
+    try {
+      const res = await authApi.get('/users');
+      const allUsers: User[] = res.data;
+      let filtered: User[];
+      if (hasRole(['admin'])) {
+        filtered = allUsers.filter((u) => u.role === 'candidate' || u.role === 'seminarist');
+      } else {
+        filtered = allUsers.filter(
+          (u) =>
+            (u.role === 'candidate' || u.role === 'seminarist') &&
+            u.manager_id === user?.id
+        );
+      }
+      setAvailableUsers(filtered);
+      setShowAssignModal(true);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка загрузки пользователей');
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllAvailable = () => {
+    const allIds = new Set(availableUsers.map((u) => u.id));
+    setSelectedUserIds(allIds);
+  };
+
+  const handleAssign = async () => {
+    if (!id || selectedUserIds.size === 0) return;
+    setAssignLoading(true);
+    setError('');
+    try {
+      await assignModule(id, Array.from(selectedUserIds));
+      setShowAssignModal(false);
+      fetchAssignments();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка назначения');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleUnassign = async (userId: string) => {
+    if (!id) return;
+    setError('');
+    try {
+      await unassignModule(id, userId);
+      fetchAssignments();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Ошибка отзыва назначения');
+    }
+  };
+
   const fetchData = async () => {
     if (!id) return;
     setLoading(true);
@@ -63,6 +155,9 @@ export function ModuleDetailPage() {
       setModule(modRes.data);
       setLessons(lessonsRes.data);
       setHeuristics(heurRes.data);
+      if (hasRole(['admin', 'methodist'])) {
+        fetchAssignments();
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка загрузки');
     } finally {
@@ -323,6 +418,97 @@ export function ModuleDetailPage() {
           </RoleGuard>
         </div>
       </div>
+
+      {/* Назначения */}
+      <RoleGuard allowedRoles={['admin', 'methodist']}>
+        <div className="mt-6 bg-white p-6 rounded-lg shadow">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Назначения ({assignments.length})</h2>
+            {module.status === 'published' && (
+              <button
+                onClick={handleOpenAssignModal}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+              >
+                Назначить пользователей
+              </button>
+            )}
+          </div>
+          {assignments.length === 0 ? (
+            <p className="text-gray-500 text-sm">Нет назначенных пользователей</p>
+          ) : (
+            <div className="space-y-2">
+              {assignments.map((a) => (
+                <div key={a.id} className="flex justify-between items-center border-b border-gray-100 py-2">
+                  <span className="text-sm text-gray-700">{a.user_id}</span>
+                  <button
+                    onClick={() => handleUnassign(a.user_id)}
+                    className="text-red-600 hover:text-red-800 text-xs"
+                  >
+                    Отозвать
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </RoleGuard>
+
+      {/* Assign Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Назначить пользователей</h3>
+            {availableUsers.length === 0 ? (
+              <p className="text-gray-500">Нет доступных пользователей</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                <div className="flex gap-2 mb-2">
+                  <button
+                    onClick={selectAllAvailable}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Выбрать всех
+                  </button>
+                  <button
+                    onClick={() => setSelectedUserIds(new Set())}
+                    className="text-xs text-gray-600 hover:underline"
+                  >
+                    Снять выделение
+                  </button>
+                </div>
+                {availableUsers.map((u) => (
+                  <label key={u.id} className="flex items-center gap-2 py-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.has(u.id)}
+                      onChange={() => toggleUserSelection(u.id)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">
+                      {u.full_name || u.email} ({u.role})
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleAssign}
+                disabled={assignLoading || selectedUserIds.size === 0}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 text-sm"
+              >
+                {assignLoading ? 'Сохранение...' : 'Назначить выбранным'}
+              </button>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Уроки */}
       <div className="mt-8">
