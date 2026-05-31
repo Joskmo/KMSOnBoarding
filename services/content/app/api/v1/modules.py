@@ -39,7 +39,14 @@ async def _can_access_module(
     if role == "admin":
         return True
     if role == "methodist":
-        return str(module.author_id) == str(current_user["id"])
+        if str(module.author_id) == str(current_user["id"]):
+            return True
+        if module.status == "published":
+            assigned_ids = await assignment_crud.get_modules_for_user(
+                db, user_id=UUID(current_user["id"])
+            )
+            return module.id in assigned_ids
+        return False
     if role in ("seminarist", "candidate"):
         if module.status != "published":
             return False
@@ -104,7 +111,19 @@ async def list_modules(
 
     skip = (page - 1) * size
 
-    if role in ("seminarist", "candidate"):
+    if role == "methodist":
+        assigned_ids = await assignment_crud.get_modules_for_user(
+            db, user_id=UUID(current_user["id"])
+        )
+        modules, total = await module_crud.get_multi_for_methodist(
+            db,
+            skip=skip,
+            limit=size,
+            status=status_filter,
+            author_id=UUID(current_user["id"]),
+            assigned_ids=assigned_ids,
+        )
+    elif role in ("seminarist", "candidate"):
         assigned_ids = await assignment_crud.get_modules_for_user(
             db, user_id=UUID(current_user["id"])
         )

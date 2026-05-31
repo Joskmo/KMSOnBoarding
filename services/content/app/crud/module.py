@@ -49,6 +49,40 @@ async def get_multi(
     return list(result.scalars().all()), count_result.scalar_one()
 
 
+async def get_multi_for_methodist(
+    db: AsyncSession,
+    *,
+    skip: int = 0,
+    limit: int = 100,
+    status: str | None = None,
+    author_id: UUID,
+    assigned_ids: list[UUID],
+) -> tuple[list[Module], int]:
+    """Get modules for a methodist: own + assigned."""
+    from sqlalchemy import or_
+
+    query = select(Module)
+    count_query = select(func.count(Module.id))
+
+    or_condition = or_(
+        Module.author_id == author_id,
+        Module.id.in_(assigned_ids) if assigned_ids else False,
+    )
+    query = query.where(or_condition)
+    count_query = count_query.where(or_condition)
+
+    if status:
+        query = query.where(Module.status == status)
+        count_query = count_query.where(Module.status == status)
+
+    query = query.offset(skip).limit(limit)
+
+    result = await db.execute(query)
+    count_result = await db.execute(count_query)
+
+    return list(result.scalars().all()), count_result.scalar_one()
+
+
 async def create(db: AsyncSession, *, obj_in: dict) -> Module:
     """Create a new module."""
     db_obj = Module(**obj_in)
