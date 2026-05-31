@@ -46,6 +46,13 @@ export function ModuleEditPage() {
 
   return (
     <div className="max-w-2xl">
+      <button
+        type="button"
+        onClick={() => navigate(`/modules/${id}`)}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <h1 className="text-2xl font-bold mb-6">Редактирование модуля</h1>
       
       {error && (

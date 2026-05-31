@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
 
 export function UsersPage() {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,6 +68,13 @@ export function UsersPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate('/modules')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Пользователи</h1>
       </div>

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { contentApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { RoleGuard } from '../components/RoleGuard';
 import type { Module } from '../types';
 
 export function ModulesPage() {
+  const navigate = useNavigate();
   const { hasRole } = useAuth();
   const isManager = hasRole(['admin', 'methodist']);
 
@@ -42,6 +43,12 @@ export function ModulesPage() {
 
   return (
     <div>
+      <button
+        onClick={() => navigate('/tests')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Модули</h1>
 

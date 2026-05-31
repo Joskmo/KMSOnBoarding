@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getMyAttempts } from '../api/assessment';
 import { contentApi } from '../api/client';
 import { Pagination } from '../components/Pagination';
@@ -6,6 +7,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import type { AttemptListItem, Module } from '../types';
 
 export function MyAttemptsPage() {
+  const navigate = useNavigate();
   const [attempts, setAttempts] = useState<AttemptListItem[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [total, setTotal] = useState(0);
@@ -39,6 +41,13 @@ export function MyAttemptsPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate('/tests')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <h1 className="text-2xl font-bold mb-6">Мои попытки</h1>
       {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
 

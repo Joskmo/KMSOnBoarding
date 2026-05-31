@@ -92,6 +92,13 @@ export function TestsListPage() {
 
     return (
       <div>
+        <button
+          type="button"
+          onClick={() => navigate('/modules')}
+          className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+        >
+          ← Назад
+        </button>
         <h1 className="text-2xl font-bold mb-6">Доступные тесты</h1>
         {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
         {loading ? <LoadingSpinner /> : (
@@ -180,6 +187,13 @@ export function TestsListPage() {
   // --- Admin / Methodist view ---
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate('/modules')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Тесты</h1>
         <Link

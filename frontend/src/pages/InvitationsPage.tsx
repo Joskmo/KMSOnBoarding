@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { Invitation, User } from '../types';
@@ -21,6 +22,7 @@ function CheckIcon() {
 }
 
 export function InvitationsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -119,6 +121,13 @@ export function InvitationsPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate('/modules')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <h1 className="text-2xl font-bold mb-6">Приглашения и регистрация</h1>
 
       {/* Create invitation form */}

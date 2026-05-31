@@ -127,6 +127,13 @@ export function LessonDetailPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate(`/modules/${id}`)}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       {/* Breadcrumbs */}
       <div className="mb-4 text-sm text-gray-600">
         <Link to="/modules" className="hover:underline">Модули</Link>

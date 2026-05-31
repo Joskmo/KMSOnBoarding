@@ -380,6 +380,13 @@ export function ModuleDetailPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate('/modules')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-bold">{module.title}</h1>

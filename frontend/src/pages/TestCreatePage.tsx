@@ -85,6 +85,13 @@ export function TestCreatePage() {
 
   return (
     <div className="max-w-2xl">
+      <button
+        type="button"
+        onClick={() => navigate('/tests')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+      >
+        ← Назад
+      </button>
       <h1 className="text-2xl font-bold mb-6">Создание теста</h1>
       {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
 
