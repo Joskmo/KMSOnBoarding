@@ -17,3 +17,4 @@ AGENTS.md
 *.tsbuildinfo
 *.temp
 .python-version
+services.code-workspace
