@@ -473,7 +473,7 @@ export function ModuleDetailPage() {
                 return (
                   <div key={a.id} className="flex justify-between items-center border-b border-gray-100 py-2">
                     <span className="text-sm text-gray-700">
-                      {assignedUser ? `${assignedUser.full_name || assignedUser.email} (${assignedUser.role})` : a.user_id}
+                      {assignedUser ? `${assignedUser.full_name || assignedUser.email} (${assignedUser.role})` : 'Неизвестный пользователь'}
                     </span>
                     <button
                       onClick={() => handleUnassign(a.user_id)}

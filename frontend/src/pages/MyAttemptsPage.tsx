@@ -59,7 +59,7 @@ export function MyAttemptsPage() {
                 {attempts.map((a) => (
                   <tr key={a.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                      {a.test_title || a.test_id}
+                      {a.test_title || '—'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {a.module_id ? (moduleMap.get(a.module_id) || '—') : '—'}
