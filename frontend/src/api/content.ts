@@ -1,5 +1,5 @@
 import { contentApi } from './client';
-import type { Lesson, Heuristic } from '../types';
+import type { Lesson, Heuristic, ModuleAssignment } from '../types';
 
 // Lessons
 export const updateLesson = (id: string, data: Partial<Lesson>) =>
@@ -20,3 +20,13 @@ export const approveHeuristicEdit = (id: string) =>
 
 export const rejectHeuristicEdit = (id: string) =>
   contentApi.post<Heuristic>(`/heuristics/${id}/reject-edit`);
+
+// Module assignments
+export const getModuleAssignments = (moduleId: string) =>
+  contentApi.get<ModuleAssignment[]>(`/modules/${moduleId}/assignments`);
+
+export const assignModule = (moduleId: string, userIds: string[]) =>
+  contentApi.post<ModuleAssignment[]>(`/modules/${moduleId}/assignments`, { user_ids: userIds });
+
+export const unassignModule = (moduleId: string, userId: string) =>
+  contentApi.delete(`/modules/${moduleId}/assignments/${userId}`);

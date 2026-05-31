@@ -48,6 +48,14 @@ export interface Heuristic {
   updated_at: string;
 }
 
+export interface ModuleAssignment {
+  id: string;
+  module_id: string;
+  user_id: string;
+  assigned_by: string;
+  created_at: string;
+}
+
 export interface Paginated<T> {
   items: T[];
   total: number;
