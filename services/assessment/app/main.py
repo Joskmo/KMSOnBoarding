@@ -18,6 +18,7 @@ app = FastAPI(
     description="Assessment management service for KMS",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.include_router(api_router)
