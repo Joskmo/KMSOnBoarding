@@ -44,7 +44,7 @@ async def _can_access_module(
         if module.status != "published":
             return False
         assigned_ids = await assignment_crud.get_modules_for_user(
-            db, UUID(current_user["id"])
+            db, user_id=UUID(current_user["id"])
         )
         return module.id in assigned_ids
     return False
@@ -106,7 +106,7 @@ async def list_modules(
 
     if role in ("seminarist", "candidate"):
         assigned_ids = await assignment_crud.get_modules_for_user(
-            db, UUID(current_user["id"])
+            db, user_id=UUID(current_user["id"])
         )
         modules, total = await module_crud.get_multi(
             db,
@@ -203,6 +203,12 @@ async def update_module_status(
         )
 
     new_status = status_update.status
+
+    if module.status == "published" and new_status == "draft":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot revert published module to draft",
+        )
 
     return await module_crud.update(db, db_obj=module, obj_in={"status": new_status})
 
