@@ -51,7 +51,7 @@ function App() {
             <Route path="tests/:id" element={<PrivateRoute><TestDetailPage /></PrivateRoute>} />
             <Route path="tests/:id/edit" element={<PrivateRoute><RoleRoute allowedRoles={['admin', 'methodist']}><TestEditPage /></RoleRoute></PrivateRoute>} />
             <Route path="tests/:id/attempts" element={<PrivateRoute><RoleRoute allowedRoles={['admin', 'methodist']}><TestAttemptsPage /></RoleRoute></PrivateRoute>} />
-            <Route path="tests/:id/take" element={<PrivateRoute><RoleRoute allowedRoles={['seminarist', 'candidate']}><TestTakePage /></RoleRoute></PrivateRoute>} />
+            <Route path="tests/:id/take" element={<PrivateRoute><RoleRoute allowedRoles={['methodist', 'seminarist', 'candidate']}><TestTakePage /></RoleRoute></PrivateRoute>} />
             <Route path="attempts/my" element={<PrivateRoute><MyAttemptsPage /></PrivateRoute>} />
           </Route>
         </Routes>
