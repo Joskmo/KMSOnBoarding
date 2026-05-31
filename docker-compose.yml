@@ -51,7 +51,7 @@ services:
       dockerfile: Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment:
-      - DATABASE_URL=${AUTH_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_auth:5432/kms_auth
       - SECRET_KEY=${SECRET_KEY}
     depends_on:
       db_auth:
@@ -64,7 +64,7 @@ services:
       context: ./services/auth
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=${AUTH_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_auth:5432/kms_auth
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
@@ -83,7 +83,7 @@ services:
       dockerfile: Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment:
-      - DATABASE_URL=${CONTENT_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_content:5432/kms_content
       - SECRET_KEY=${SECRET_KEY}
     depends_on:
       db_content:
@@ -96,7 +96,7 @@ services:
       context: ./services/content
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=${CONTENT_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_content:5432/kms_content
     depends_on:
       migrate-content:
         condition: service_completed_successfully
@@ -109,7 +109,7 @@ services:
       dockerfile: Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment:
-      - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_assessment:5432/kms_assessment
       - SECRET_KEY=${SECRET_KEY}
     depends_on:
       db_assessment:
@@ -122,7 +122,7 @@ services:
       context: ./services/assessment
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
+      - DATABASE_URL=postgresql+asyncpg://kms:${POSTGRES_PASSWORD}@db_assessment:5432/kms_assessment
     depends_on:
       migrate-assessment:
         condition: service_completed_successfully
