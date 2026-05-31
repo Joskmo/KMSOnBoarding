@@ -36,8 +36,10 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS}
     depends_on:
-      - db_auth
-      - redis
+      db_auth:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - kms_internal
 
@@ -48,7 +50,8 @@ services:
     environment:
       - DATABASE_URL=${CONTENT_DATABASE_URL}
     depends_on:
-      - db_content
+      db_content:
+        condition: service_healthy
     networks:
       - kms_internal
 
@@ -59,7 +62,8 @@ services:
     environment:
       - DATABASE_URL=${ASSESSMENT_DATABASE_URL}
     depends_on:
-      - db_assessment
+      db_assessment:
+        condition: service_healthy
     networks:
       - kms_internal
 
@@ -73,6 +77,12 @@ services:
       - pg_auth_data:/var/lib/postgresql
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - kms_internal
 
@@ -86,6 +96,12 @@ services:
       - pg_content_data:/var/lib/postgresql
     ports:
       - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - kms_internal
 
@@ -99,6 +115,12 @@ services:
       - pg_assessment_data:/var/lib/postgresql
     ports:
       - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - kms_internal
 
